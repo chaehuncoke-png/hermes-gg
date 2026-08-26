@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hermes.gg</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Noto Sans KR',sans-serif;background:linear-gradient(135deg,#0a0e27 0%,#0d1b3e 30%,#0f2557 60%,#0a1628 100%);min-height:100vh;color:#fff;overflow-x:hidden}
+        body::before{content:"";position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 20% 50%,rgba(30,90,200,0.12) 0%,transparent 50%),radial-gradient(ellipse at 80% 20%,rgba(0,180,255,0.08) 0%,transparent 40%);pointer-events:none;z-index:0}
+        .container{max-width:1100px;margin:0 auto;padding:20px;position:relative;z-index:1}
+
+        .header{text-align:center;padding:35px 20px 30px;background:linear-gradient(135deg,rgba(10,30,80,0.8),rgba(15,40,100,0.6));border-radius:18px;margin-bottom:25px;border:1px solid rgba(100,160,255,0.2);position:relative;overflow:hidden}
+        .logo-area{display:flex;align-items:center;justify-content:center;gap:15px;margin-bottom:8px}
+        .logo-icon{width:56px;height:56px;filter:drop-shadow(0 0 12px rgba(0,150,255,0.5))}
+        .header h1{font-family:'Orbitron',sans-serif;font-size:2.8em;font-weight:900;background:linear-gradient(135deg,#4da6ff,#00d4ff,#80cfff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:3px}
+        .header .subtitle{font-size:1em;color:#6a9fd8;margin-top:4px}
+        .header .update-time{font-size:0.85em;color:#4a7aaa;margin-top:8px}
+        .boots-decor{position:absolute;right:25px;bottom:15px;opacity:0.12;pointer-events:none}
+
+        .card{background:linear-gradient(135deg,rgba(12,25,60,0.85),rgba(8,20,50,0.9));border-radius:15px;padding:25px;margin-bottom:20px;border:1px solid rgba(80,140,230,0.15);backdrop-filter:blur(10px)}
+        .card h2{color:#4da6ff;margin-bottom:18px;font-size:1.4em;border-bottom:2px solid rgba(77,166,255,0.3);padding-bottom:10px}
+
+        .search-box{background:linear-gradient(135deg,rgba(10,25,65,0.9),rgba(15,35,80,0.7));border:1px solid rgba(77,166,255,0.25);border-radius:15px;padding:22px;margin-bottom:22px}
+        .search-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+        .search-row input[type="text"]{flex:1;min-width:160px;padding:13px 16px;border-radius:10px;border:1px solid rgba(80,140,230,0.3);background:rgba(5,15,40,0.8);color:#fff;font-size:1.05em;transition:border-color .3s}
+        .search-row input::placeholder{color:#4a6a90}
+        .search-row input:focus{outline:none;border-color:#4da6ff;box-shadow:0 0 12px rgba(77,166,255,0.2)}
+        .search-row button{padding:13px 45px;border-radius:10px;border:none;background:linear-gradient(135deg,#1a6dd4,#2196f3);color:#fff;font-size:1.05em;cursor:pointer;font-weight:700;transition:all .3s;white-space:nowrap;box-shadow:0 4px 15px rgba(33,150,243,0.3)}
+        .search-row button:hover{background:linear-gradient(135deg,#2196f3,#42a5f5);transform:translateY(-1px)}
+        .search-row button:disabled{background:#333;cursor:not-allowed;transform:none}
+
+        .status{margin-top:10px;color:#6a9fd8;font-size:.9em}
+        .status.error{color:#f87171}
+        .status.success{color:#4ade80}
+
+        .api-settings{margin-top:12px;padding-top:12px;border-top:1px solid rgba(80,140,230,0.15)}
+        .api-settings summary{cursor:pointer;color:#4a7aaa;font-size:.85em}
+        .api-settings summary:hover{color:#4da6ff}
+        .api-key-row{display:flex;gap:8px;margin-top:10px}
+        .api-key-row input{flex:1;padding:9px 12px;border-radius:8px;border:1px solid rgba(80,140,230,0.3);background:rgba(5,15,40,0.8);color:#fff;font-size:.9em}
+        .api-key-row button{padding:9px 18px;border-radius:8px;border:none;background:#22c55e;color:#fff;cursor:pointer;font-size:.85em;font-weight:700}
+        .api-key-row button:hover{background:#16a34a}
+        .api-key-msg{margin-top:8px;font-size:.82em}
+        .api-key-help{color:#4a6a90;font-size:.78em;margin-top:8px}
+        .api-key-help a{color:#4da6ff}
+
+        .rank-section{display:flex;justify-content:space-around;flex-wrap:wrap;gap:20px}
+        .rank-box{text-align:center;padding:22px;background:rgba(5,15,40,0.6);border-radius:12px;min-width:200px;border:1px solid rgba(80,140,230,0.1)}
+        .rank-tier{font-size:2em;font-weight:bold;margin-bottom:8px}
+        .rank-label{font-size:.9em;color:#6a9fd8;margin-bottom:5px}
+
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:14px}
+        .stat-item{text-align:center;padding:16px;background:rgba(5,15,40,0.6);border-radius:12px;border:1px solid rgba(80,140,230,0.08)}
+        .stat-value{font-size:1.7em;font-weight:bold;color:#4da6ff}
+        .stat-label{font-size:.88em;color:#6a9fd8;margin-top:5px}
+        .win-rate{color:#4ade80}.team-luck{color:#fbbf24}
+
+        .game-table{width:100%;border-collapse:collapse;margin-top:15px;font-size:.82em}
+        .game-table th{background:rgba(30,70,140,0.4);padding:10px 5px;text-align:center;font-weight:700;white-space:nowrap;color:#8ab4f8}
+        .game-table td{padding:8px 5px;text-align:center;border-bottom:1px solid rgba(80,140,230,0.08)}
+        .game-table tr:hover{background:rgba(30,70,140,0.15)}
+        .victory{color:#4ade80;font-weight:700}.defeat{color:#f87171;font-weight:700}
+        .good-kda{color:#4ade80}.bad-kda{color:#f87171}.normal-kda{color:#fbbf24}
+        .team-rank-1{color:#ffd700;font-weight:700}.team-rank-2{color:#c0c0c0;font-weight:700}
+        .team-rank-3{color:#cd7f32}.team-rank-4{color:#6a9fd8}.team-rank-5{color:#4a6a90}
+        .luck-good{color:#4ade80}.luck-bad{color:#f87171}
+        .champion-name{font-weight:700;color:#4da6ff}
+        .note{text-align:center;color:#4a6a90;font-size:.83em;margin-bottom:10px;font-style:italic}
+        .position-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.78em;font-weight:700}
+        .position-jungle{background:#166534;color:#86efac}.position-support{background:#1e3a5f;color:#7dd3fc}
+        .position-top{background:#7f1d1d;color:#fca5a5}.position-mid{background:#4c1d95;color:#c4b5fd}
+        .position-bot{background:#7c2d12;color:#fdba74}
+
+        .luck-formula{background:rgba(5,15,40,0.5);border-radius:12px;padding:16px;margin-top:15px;font-size:.88em;border:1px solid rgba(80,140,230,0.1)}
+        .luck-formula h3{color:#fbbf24;margin-bottom:10px}
+        .luck-formula ul{list-style:none;padding:0}.luck-formula li{margin:4px 0;color:#8ab4f8}
+        .luck-formula li:before{content:"◆ ";color:#4da6ff;font-size:.7em}
+
+        .source-link{text-align:center;margin-top:25px;padding:18px;background:linear-gradient(135deg,rgba(10,25,65,0.7),rgba(15,35,80,0.5));border-radius:12px;border:1px solid rgba(80,140,230,0.15)}
+        .source-link a{color:#4da6ff;text-decoration:none;font-size:1em}.source-link a:hover{text-decoration:underline;color:#80cfff}
+        .source-link p{color:#4a7aaa;margin-bottom:8px;font-size:.9em}
+
+        .loading{display:none;text-align:center;padding:40px}.loading.show{display:block}
+        .spinner{border:4px solid rgba(80,140,230,0.15);border-top:4px solid #4da6ff;border-radius:50%;width:42px;height:42px;animation:spin .8s linear infinite;margin:0 auto 12px}
+        @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+
+        #result-area{display:none}#result-area.show{display:block}
+
+        .no-key-notice{display:none;text-align:center;padding:40px 20px;margin-bottom:20px}
+        .no-key-notice.show{display:block}
+        .no-key-notice h2{color:#fbbf24;margin-bottom:15px;font-size:1.3em}
+        .no-key-notice p{color:#8ab4f8;margin-bottom:10px;line-height:1.6}
+        .no-key-notice ol{text-align:left;max-width:500px;margin:15px auto;color:#6a9fd8;line-height:1.8}
+        .no-key-notice ol li{margin-bottom:5px}
+        .no-key-notice code{background:rgba(0,100,200,0.2);padding:2px 8px;border-radius:4px;color:#4da6ff;font-size:.9em}
+        .no-key-notice .skip{margin-top:20px;color:#4a6a90;font-size:.85em}
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="logo-area">
+            <svg class="logo-icon" viewBox="0 0 100 100" fill="none">
+                <defs><linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#4da6ff"/><stop offset="100%" stop-color="#00d4ff"/></linearGradient></defs>
+                <path d="M15 55 Q25 25, 50 35 Q35 30, 20 50 Z" fill="url(#g1)" opacity="0.7"/>
+                <path d="M85 55 Q75 25, 50 35 Q65 30, 80 50 Z" fill="url(#g1)" opacity="0.7"/>
+                <path d="M35 60 L35 80 Q35 88, 50 88 Q65 88, 65 80 L65 60 Q60 52, 50 52 Q40 52, 35 60Z" fill="url(#g1)" stroke="#80cfff" stroke-width="2"/>
+                <rect x="37" y="65" width="26" height="4" rx="2" fill="#80cfff" opacity="0.8"/>
+                <circle cx="50" cy="67" r="3" fill="#fff" opacity="0.9"/>
+            </svg>
+            <h1>HERMES.GG</h1>
+        </div>
+        <div class="subtitle">League of Legends Match History</div>
+        <div class="update-time" id="update-time">닉네임과 태그를 입력하세요</div>
+        <div class="boots-decor">
+            <svg width="90" height="90" viewBox="0 0 100 100" fill="none">
+                <path d="M25 45 L25 75 Q25 88, 50 88 Q75 88, 75 75 L75 45 Q65 30, 50 30 Q35 30, 25 45Z" fill="none" stroke="#4da6ff" stroke-width="2.5"/>
+                <rect x="28" y="52" width="44" height="5" rx="2.5" fill="#4da6ff" opacity="0.5"/>
+                <path d="M42 30 L42 18 Q42 10, 50 10 L50 10 Q50 10, 50 18 L50 30" fill="none" stroke="#4da6ff" stroke-width="2" opacity="0.6"/>
+                <circle cx="50" cy="55" r="4" fill="#4da6ff" opacity="0.4"/>
+            </svg>
+        </div>
+    </div>
+
+    <div class="no-key-notice show" id="no-key-notice">
+        <h2>Riot API 키 설정 (최초 1회)</h2>
+        <p>전적을 불러오려면 Riot API 키가 필요합니다.<br>아래 방법으로 <b>무료 발급</b> 후 입력하세요.</p>
+        <ol>
+            <li><a href="https://developer.riotgames.com/" target="_blank" style="color:#4da6ff">developer.riotgames.com</a> 접속</li>
+            <li>Riot 계정으로 로그인</li>
+            <li>왼쪽 메뉴 <b>"API 키"</b> 클릭</li>
+            <li>아래쪽 <b>Development API Key</b> 영역에서 키 복사 (24시간 유효)</li>
+            <li>아래 입력란에 붙여넣기</li>
+        </ol>
+        <div class="skip" id="skip-msg" style="display:none">
+            <p style="color:#4ade80">API 키가 설정되었습니다!</p>
+        </div>
+    </div>
+
+    <div class="search-box">
+        <div class="search-row">
+            <input type="text" id="game-name-input" placeholder="닉네임 (예: Wutellme1)">
+            <input type="text" id="tag-line-input" placeholder="태그 (예: Why)" style="flex:0.5;min-width:110px;">
+            <button id="fetch-btn" onclick="fetchAllData()">검색</button>
+        </div>
+        <div class="status" id="api-status"></div>
+        <div class="api-settings">
+            <details id="api-key-details">
+                <summary>API 키 설정 / 변경</summary>
+                <div class="api-key-row">
+                    <input type="password" id="api-key-input" placeholder="Riot API 키 입력">
+                    <button onclick="setApiKey()">저장</button>
+                </div>
+                <div class="api-key-msg" id="api-key-msg"></div>
+                <p class="api-key-help">Development Key는 24시간마다 갱신 필요<br><a href="https://developer.riotgames.com/" target="_blank">developer.riotgames.com</a></p>
+            </details>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p id="loading-text">데이터 불러오는 중...</p>
+    </div>
+
+    <div id="result-area">
+        <div class="card"><h2>랭크 정보</h2><div class="rank-section" id="rank-section"></div></div>
+        <div class="card"><h2>최근 20경기 요약</h2><div class="stats-grid" id="summary-stats"></div></div>
+        <div class="card">
+            <h2>최근 20경기 상세</h2>
+            <p class="note">팀순위와 팀운은 KDA, 골드, 시야점수, 라인전, 오브젝트, 타워, CS를 종합 분석한 값</p>
+            <table class="game-table">
+                <thead><tr><th>#</th><th>모드</th><th>결과</th><th>챔피언</th><th>라인</th><th>KDA</th><th>CS</th><th>골드</th><th>시야</th><th>팀순위</th><th>팀운</th></tr></thead>
+                <tbody id="game-tbody"></tbody>
+            </table>
+        </div>
+        <div class="card"><h2>라인별 승률</h2><div class="stats-grid" id="position-stats"></div></div>
+        <div class="card">
+            <h2>챔피언별 성적</h2>
+            <table class="game-table">
+                <thead><tr><th>챔피언</th><th>경기수</th><th>승률</th><th>평균 KDA</th><th>주 라인</th></tr></thead>
+                <tbody id="champion-tbody"></tbody>
+            </table>
+        </div>
+        <div class="card">
+            <h2>팀운 분석</h2>
+            <div class="stats-grid" id="luck-stats"></div>
+            <div class="luck-formula">
+                <h3>팀운 계산 공식</h3>
+                <ul>
+                    <li><strong>KDA (30%):</strong> 킬/데스/어시스트 비율</li>
+                    <li><strong>골드 수급량 (20%):</strong> 분당 골드 획득량</li>
+                    <li><strong>시야점수 (15%):</strong> 와드 설치/제거 및 시야 장악</li>
+                    <li><strong>라인전 (15%):</strong> 미니언 CS 격차 및 킬 관여</li>
+                    <li><strong>오브젝트 (10%):</strong> 드래곤/바론/허큘도스 획득</li>
+                    <li><strong>타워 (5%):</strong> 포탑 파괴 기여도</li>
+                    <li><strong>CS (5%):</strong> 미니언/몬스터 처치 수</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="source-link">
+        <p>전적 정보 출처</p>
+        <a href="https://your.gg" target="_blank" id="yourgg-link">YOUR.GG</a>
+        &nbsp;|&nbsp;
+        <a href="https://lolprofile.net" target="_blank" id="lolprofile-link">LoLProfile</a>
+    </div>
+</div>
+
+<script>
+const POS_KO={"TOP":"탑","JUNGLE":"정글러","MID":"미드","MIDDLE":"미드","BOTTOM":"바텀","ADC":"바텀","UTILITY":"서포터","SUPPORT":"서포터"};
+const POS_CSS={"탑":"position-top","정글러":"position-jungle","미드":"position-mid","바텀":"position-bot","서포터":"position-support"};
+const POS_BG={"정글러":"#166534","서포터":"#1e3a5f","탑":"#7f1d1d","미드":"#4c1d95","바텀":"#7c2d12"};
+const QUEUE_MAP={420:"솔로랭크",440:"자유랭크",400:"일반",450:"칼바람",900:"우르프"};
+let championMap={},isFetching=false,autoFetchTimer=null,hasApiKey=false;
+
+async function checkKey(){
+    const r=await fetch("/api/has-key");
+    const d=await r.json();
+    hasApiKey=d.hasKey;
+    const n=document.getElementById("no-key-notice");
+    if(hasApiKey){n.classList.remove("show")}else{n.classList.add("show")}
+    return d.hasKey;
+}
+
+async function setApiKey(){
+    const k=document.getElementById("api-key-input").value.trim();
+    if(!k)return;
+    const r=await fetch("/api/save-key",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:k})});
+    const d=await r.json();
+    if(d.ok){
+        document.getElementById("api-key-msg").innerHTML='<span style="color:#4ade80">저장 완료!</span>';
+        document.getElementById("no-key-notice").classList.add("show");
+        document.getElementById("skip-msg").style.display="block";
+        hasApiKey=true;
+    }else{
+        document.getElementById("api-key-msg").innerHTML='<span style="color:#f87171">'+d.msg+'</span>';
+    }
+}
+
+function setupAutoSearch(){
+    const ni=document.getElementById("game-name-input"),ti=document.getElementById("tag-line-input");
+    const check=()=>{if(ni.value.trim().length>=2&&ti.value.trim().length>=1&&!isFetching){clearTimeout(autoFetchTimer);autoFetchTimer=setTimeout(fetchAllData,600)}};
+    ni.addEventListener("input",check);ti.addEventListener("input",check);
+    ni.addEventListener("keydown",e=>{if(e.key==="Enter")fetchAllData()});
+    ti.addEventListener("keydown",e=>{if(e.key==="Enter")fetchAllData()});
+}
+
+async function loadChampData(){
+    try{const vr=await fetch("https://ddragon.leagueoflegends.com/api/versions.json");const vs=await vr.json();
+    const r=await fetch(`https://ddragon.leagueoflegends.com/cdn/${vs[0]}/data/ko_KR/champion.json`);const d=await r.json();
+    for(const[k,v]of Object.entries(d.data))championMap[v.key]=v.name}catch(e){}
+}
+
+const champN=id=>championMap[id]||"알수없음";
+const posKO=pos=>POS_KO[pos]||pos||"알수없음";
+const kdaStr=(k,d,a)=>d===0?"Perfect":((k+a)/d).toFixed(2);
+const kdaClass=(k,d,a)=>{if(d===0)return"good-kda";const r=(k+a)/d;return r>=3?"good-kda":r>=2?"normal-kda":"bad-kda"};
+
+function teamLuck(p,info){
+    const dur=(info.gameDuration||1500)/60;
+    let s=0;
+    s+=Math.min((p.deaths>0?(p.kills+p.assists)/p.deaths:10)/5,1)*30;
+    s+=Math.min(((p.goldEarned||0)/Math.max(dur,1))/500,1)*20;
+    s+=Math.min((p.visionScore||0)/80,1)*15;
+    const cs=(p.totalMinionsKilled||0)+(p.neutralMinionsKilled||0);
+    s+=Math.min((cs/Math.max(dur,1))/8,1)*15;
+    s+=Math.min(((p.dragonKills||0)+(p.baronKills||0)+(p.riftHeraldKills||0))/3,1)*10;
+    s+=Math.min((p.turretKills||0)/2,1)*5;
+    s+=Math.min(cs/200,1)*5;
+    return Math.round(s*10)/10;
+}
+
+function teamRank(tp,my){
+    const sc=tp.map(p=>{let s=0;s+=p.deaths>0?(p.kills+p.assists)/p.deaths:10;s+=(p.goldEarned||0)/1000;s+=((p.totalMinionsKilled||0)+(p.neutralMinionsKilled||0))/10;s+=(p.visionScore||0)/10;return{puuid:p.puuid,s}});
+    sc.sort((a,b)=>b.s-a.s);
+    const i=sc.findIndex(x=>x.puuid===my);return i>=0?i+1:3;
+}
+
+function setStatus(m,t){const e=document.getElementById("api-status");e.textContent=m;e.className="status "+(t||"")}
+function setLoading(show,text){const e=document.getElementById("loading");show?e.classList.add("show"):e.classList.remove("show");if(text)document.getElementById("loading-text").textContent=text}
+
+async function fetchAllData(){
+    if(isFetching)return;
+    const gn=document.getElementById("game-name-input").value.trim();
+    const tl=document.getElementById("tag-line-input").value.trim();
+    if(!gn||!tl){setStatus("닉네임과 태그를 입력하세요!","error");return}
+
+    if(!hasApiKey){
+        const ok=await checkKey();
+        if(!ok){setStatus("API 키를 먼저 설정하세요!","error");document.getElementById("api-key-details").open=true;return}
+    }
+
+    isFetching=true;document.getElementById("fetch-btn").disabled=true;
+    setLoading(true,"계정 정보 가져오는 중...");
+    document.getElementById("result-area").classList.remove("show");
+    document.getElementById("summoner-name").textContent=`${gn} #${tl}`;
+    setStatus("");
+
+    await loadChampData();
+
+    try{
+        setLoading(true,"계정 정보 가져오는 중...");
+        const ar=await fetch(`/api/account?gameName=${encodeURIComponent(gn)}&tagLine=${encodeURIComponent(tl)}`);
+        const ad=await ar.json();
+        if(ad.error)throw new Error(ad.error);
+        const puuid=ad.puuid;
+
+        setLoading(true,"랭크 정보 가져오는 중...");
+        const rr=await fetch(`/api/ranked/${puuid}`);
+        const rd=await rr.json();
+        if(rd.error)throw new Error(rd.error);
+
+        setLoading(true,"매치 목록 가져오는 중...");
+        const mr=await fetch(`/api/matches/${puuid}?count=20&queue=420`);
+        const mids=await mr.json();
+        if(mids.error)throw new Error(mids.error);
+
+        const games=[];
+        for(let i=0;i<mids.length;i++){
+            setLoading(true,`매치 ${i+1}/${mids.length} 상세 정보...`);
+            const mRes=await fetch(`/api/match/${mids[i]}`);
+            const m=await mRes.json();
+            if(m.error)continue;
+            const pi=m.metadata.participants.indexOf(puuid);
+            if(pi<0)continue;
+            const p=m.info.participants[pi];
+            const tp=m.info.participants.filter(x=>x.teamId===p.teamId);
+            games.push({
+                mode:QUEUE_MAP[m.info.queueId]||"알수없음",win:p.win,
+                champion:champN(p.championId),position:posKO(p.teamPosition),
+                kills:p.kills,deaths:p.deaths,assists:p.assists,
+                kdaStr:kdaStr(p.kills,p.deaths,p.assists),
+                kdaNum:p.deaths>0?(p.kills+p.assists)/p.deaths:99,
+                cs:(p.totalMinionsKilled||0)+(p.neutralMinionsKilled||0),
+                gold:Math.round((p.goldEarned||0)/1000*10)/10,
+                visionScore:p.visionScore||0,
+                teamRank:teamRank(tp,puuid),
+                teamLuck:teamLuck(p,m.info)
+            });
+            await new Promise(r=>setTimeout(r,80));
+        }
+        renderData(games,ad,rd);
+        setStatus(`${games.length}개 매치 불러옴!`,"success");
+    }catch(e){setStatus("오류: "+e.message,"error")}
+
+    isFetching=false;document.getElementById("fetch-btn").disabled=false;setLoading(false);
+}
+
+function renderData(games,account,rank){
+    document.getElementById("update-time").textContent="Last Updated: "+new Date().toLocaleString("ko-KR");
+    document.getElementById("result-area").classList.add("show");
+    if(account){
+        document.getElementById("summoner-name").textContent=`${account.gameName} #${account.tagLine}`;
+        const en=encodeURIComponent(`${account.gameName}-${account.tagLine}`);
+        document.getElementById("yourgg-link").href=`https://your.gg/ko/kr/profile/${en}`;
+        document.getElementById("lolprofile-link").href=`https://lolprofile.net/summoner/kr/${en}`;
+    }
+
+    const total=games.length,wins=games.filter(g=>g.win).length;
+    const wr=total?Math.round(wins/total*1000)/10:0;
+    const avgKda=total?(games.reduce((s,g)=>s+g.kdaNum,0)/total).toFixed(2):"0";
+    const gl=games.filter(g=>g.teamLuck>=50).length;
+    const luckScore=total?Math.round(gl/total*100):0;
+    const avgRank=total?(games.reduce((s,g)=>s+g.teamRank,0)/total).toFixed(1):"-";
+
+    document.getElementById("summary-stats").innerHTML=`
+        <div class="stat-item"><div class="stat-value">${avgKda}</div><div class="stat-label">평균 KDA</div></div>
+        <div class="stat-item"><div class="stat-value win-rate">${wr}%</div><div class="stat-label">승률 (${wins}W ${total-wins}L)</div></div>
+        <div class="stat-item"><div class="stat-value team-luck">${luckScore}%</div><div class="stat-label">팀운 점수</div></div>
+        <div class="stat-item"><div class="stat-value">${avgRank}</div><div class="stat-label">평균 팀순위</div></div>`;
+
+    let sr={tier:"Unranked",leaguePoints:0,wins:0,losses:0},fr={tier:"Unranked",leaguePoints:0,wins:0,losses:0};
+    if(rank&&Array.isArray(rank.ranked))rank.ranked.forEach(r=>{if(r.queueType==="RANKED_SOLO_5x5")sr=r;else if(r.queueType==="RANKED_FLEX_SR")fr=r});
+    const sw=sr.wins+sr.losses>0?Math.round(sr.wins/(sr.wins+sr.losses)*1000)/10:0;
+    const fw=fr.wins+fr.losses>0?Math.round(fr.wins/(fr.wins+fr.losses)*1000)/10:0;
+    const tc={"iron":"#5e5148","bronze":"#cd7f32","silver":"#c0c0c0","gold":"#ffd700","platinum":"#00ced1","emerald":"#50c878","diamond":"#b9f2ff","master":"#9d59ff","grandmaster":"#ff4500","challenger":"#f4e4bc"};
+
+    document.getElementById("rank-section").innerHTML=`
+        <div class="rank-box"><div class="rank-label">솔로 랭크</div>
+            <div class="rank-tier" style="color:${tc[sr.tier?.toLowerCase()]||'#cd7f32'}">${sr.tier||"Unranked"} ${sr.rank||""}</div>
+            <div>${sr.leaguePoints||0} LP</div><div>${sr.wins||0}W ${sr.losses||0}L (${sw}%)</div></div>
+        <div class="rank-box"><div class="rank-label">자유 랭크</div>
+            <div class="rank-tier" style="color:${tc[fr.tier?.toLowerCase()]||'#c0c0c0'}">${fr.tier||"Unranked"} ${fr.rank||""}</div>
+            <div>${fr.leaguePoints||0} LP</div><div>${fr.wins||0}W ${fr.losses||0}L (${fw}%)</div></div>`;
+
+    let tb="";
+    games.forEach((g,i)=>{
+        tb+=`<tr><td>${i+1}</td><td>${g.mode}</td>
+        <td class="${g.win?"victory":"defeat"}">${g.win?"승리":"패배"}</td>
+        <td class="champion-name">${g.champion}</td>
+        <td><span class="position-badge ${POS_CSS[g.position]||"position-jungle"}">${g.position}</span></td>
+        <td class="${kdaClass(g.kills,g.deaths,g.assists)}">${g.kills}/${g.deaths}/${g.assists} (${g.kdaStr})</td>
+        <td>${g.cs}</td><td>${g.gold}k</td><td>${g.visionScore}</td>
+        <td class="team-rank-${g.teamRank}">${g.teamRank}위</td>
+        <td class="${g.teamLuck>=50?"luck-good":"luck-bad"}">${g.teamLuck>=50?"O":"X"}</td></tr>`;
+    });
+    document.getElementById("game-tbody").innerHTML=tb;
+
+    const pm={};games.forEach(g=>{if(!pm[g.position])pm[g.position]={c:0,w:0};pm[g.position].c++;if(g.win)pm[g.position].w++});
+    let ph="";for(const[p,st]of Object.entries(pm)){
+        ph+=`<div class="stat-item"><div class="stat-value" style="background:${POS_BG[p]||"#333"};padding:10px;border-radius:8px">${p}</div><div class="stat-label">${st.c}경기 | ${Math.round(st.w/st.c*1000)/10}% 승률</div></div>`;
+    }
+    document.getElementById("position-stats").innerHTML=ph;
+
+    const cm={};games.forEach(g=>{if(!cm[g.champion])cm[g.champion]={c:0,w:0,kd:0,pos:g.position};cm[g.champion].c++;if(g.win)cm[g.champion].w++;cm[g.champion].kd+=g.kdaNum});
+    let ch="";for(const[c,st]of Object.entries(cm)){
+        const ak=(st.kd/st.c).toFixed(2);const kc=ak>=3?"good-kda":ak>=2?"normal-kda":"bad-kda";
+        ch+=`<tr><td class="champion-name">${c}</td><td>${st.c}</td><td>${Math.round(st.w/st.c*1000)/10}%</td><td class="${kc}">${ak}</td><td><span class="position-badge ${POS_CSS[st.pos]||"position-jungle"}">${st.pos}</span></td></tr>`;
+    }
+    document.getElementById("champion-tbody").innerHTML=ch;
+
+    document.getElementById("luck-stats").innerHTML=`
+        <div class="stat-item"><div class="stat-value luck-good">${gl}경기</div><div class="stat-label">팀운 좋음</div></div>
+        <div class="stat-item"><div class="stat-value luck-bad">${total-gl}경기</div><div class="stat-label">팀운 나쁨</div></div>
+        <div class="stat-item"><div class="stat-value team-luck">${luckScore}%</div><div class="stat-label">팀운 점수</div></div>
+        <div class="stat-item"><div class="stat-value">${avgRank}</div><div class="stat-label">평균 팀순위</div></div>`;
+}
+
+window.addEventListener("DOMContentLoaded",()=>{checkKey();setupAutoSearch()});
+</script>
+</body>
+</html>
