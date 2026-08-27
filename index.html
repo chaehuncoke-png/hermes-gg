@@ -271,7 +271,7 @@ async function fetchAllData(){
         }catch(e){rd=null}
 
         setLoading(true,"매치 목록 가져오는 중...");
-        const mr=await fetch(`/api/matches/${puuid}?count=20&queue=420`);
+        const mr=await fetch(`/api/matches/${puuid}?count=20`);
         const mids=await mr.json();
         if(mids.error)throw new Error(mids.error);
 
