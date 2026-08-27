@@ -59,9 +59,10 @@ def api_ranked(puuid):
     k = get_key()
     if not k: return jsonify({"error":"API 키 없음"})
     d1, c1 = riot_get(f"https://kr.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}", k)
-    if c1 != 200: return jsonify({"error":"소환사 정보 오류"})
+    if c1 != 200: return jsonify({"error":f"소환사 정보 오류 ({c1})", "detail": d1})
+    if "id" not in d1: return jsonify({"error":"소환사 id 없음", "detail": d1})
     d2, c2 = riot_get(f"https://kr.api.riotgames.com/lol/league/v4/entries/by-summoner/{d1['id']}", k)
-    if c2 != 200: return jsonify({"error":"랭크 정보 오류"})
+    if c2 != 200: return jsonify({"error":f"랭크 정보 오류 ({c2})"})
     return jsonify({"summoner":d1,"ranked":d2})
 
 @app.route("/api/matches/<puuid>")
