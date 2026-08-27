@@ -251,7 +251,6 @@ async function fetchAllData(){
     isFetching=true;document.getElementById("fetch-btn").disabled=true;
     setLoading(true,"계정 정보 가져오는 중...");
     document.getElementById("result-area").classList.remove("show");
-    document.getElementById("summoner-name").textContent=`${gn} #${tl}`;
     setStatus("");
 
     await loadChampData();
@@ -311,7 +310,6 @@ function renderData(games,account,rank){
     document.getElementById("update-time").textContent="Last Updated: "+new Date().toLocaleString("ko-KR");
     document.getElementById("result-area").classList.add("show");
     if(account){
-        document.getElementById("summoner-name").textContent=`${account.gameName} #${account.tagLine}`;
         const en=encodeURIComponent(`${account.gameName}-${account.tagLine}`);
         document.getElementById("yourgg-link").href=`https://your.gg/ko/kr/profile/${en}`;
         document.getElementById("lolprofile-link").href=`https://lolprofile.net/summoner/kr/${en}`;
