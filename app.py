@@ -25,9 +25,13 @@ def riot_get(url, key=None):
     r = http_requests.get(url, headers={"X-Riot-Token": k}, timeout=10)
     return r.json(), r.status_code
 
-@app.route("/riot.txt")
+@app.route("/")
 def index():
-    return send_from_directory(".","riot.txt",mimetype="text/plain" )
+    return send_from_directory(".", "index.html")
+
+@app.route("/riot.txt")
+def riot_txt():
+    return send_from_directory(".", "riot.txt", mimetype="text/plain")
 
 @app.route("/api/has-key")
 def has_key():
