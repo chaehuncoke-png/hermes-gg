@@ -263,10 +263,13 @@ async function fetchAllData(){
         if(ad.error)throw new Error(ad.error);
         const puuid=ad.puuid;
 
-        setLoading(true,"랭크 정보 가져오는 중...");
-        const rr=await fetch(`/api/ranked/${puuid}`);
-        const rd=await rr.json();
-        if(rd.error)throw new Error(rd.error);
+        let rd=null;
+        try{
+            setLoading(true,"랭크 정보 가져오는 중...");
+            const rr=await fetch(`/api/ranked/${puuid}`);
+            rd=await rr.json();
+            if(rd.error){rd=null}
+        }catch(e){rd=null}
 
         setLoading(true,"매치 목록 가져오는 중...");
         const mr=await fetch(`/api/matches/${puuid}?count=20&queue=420`);
