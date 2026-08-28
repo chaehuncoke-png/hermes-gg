@@ -163,15 +163,19 @@
             <div class="stats-grid" id="luck-stats"></div>
             <div class="luck-formula">
                 <h3>팀운 계산 공식</h3>
+                <p style="color:#8ab4f8;margin-bottom:10px">각 경기에서 나의 기록을 <b>같은 팀 아군 4명의 평균</b>과 비교해 퍼센트(0~100%)로 환산한 값입니다. 아군 평균보다 잘할수록 높게 나옵니다.</p>
                 <ul>
-                    <li><strong>KDA (30%):</strong> 킬/데스/어시스트 비율</li>
-                    <li><strong>골드 수급량 (20%):</strong> 분당 골드 획득량</li>
-                    <li><strong>시야점수 (15%):</strong> 와드 설치/제거 및 시야 장악</li>
-                    <li><strong>라인전 (15%):</strong> 미니언 CS 격차 및 킬 관여</li>
-                    <li><strong>오브젝트 (10%):</strong> 드래곤/바론/허큘도스 획득</li>
-                    <li><strong>타워 (5%):</strong> 포탑 파괴 기여도</li>
-                    <li><strong>CS (5%):</strong> 미니언/몬스터 처치 수</li>
+                    <li><strong>KDA (30%):</strong> 아군 평균 KDA 대비 나의 KDA</li>
+                    <li><strong>딜량 (20%):</strong> 아군 평균 딜량 대비 챔피언 딜량</li>
+                    <li><strong>시야 (12%):</strong> 아군 평균 시야점수 대비 시야 장악</li>
+                    <li><strong>골드 (12%):</strong> 아군 평균 골드 수급 대비</li>
+                    <li><strong>CS (10%):</strong> 아군 평균 CS 대비 미니언/몬스터 처치</li>
+                    <li><strong>오브젝트 (8%):</strong> 드래곤/바론/허굴드 획득 기여</li>
+                    <li><strong>타워 (8%):</strong> 아군 평균 대비 포탑 파괴 기여</li>
+                    <li><strong>참여도: </strong>팀 킬 대비 킬+어시스트 기여(정보용)</li>
+                    <li><strong>갱/교전: </strong>실적 전반의 종합 반영</li>
                 </ul>
+                <p style="color:#fbbf24;margin-top:10px;font-size:.9em">※ 높을수록 "혼자 캐리한 경기", 낮을수록 "팀에 의존했던 경기"</p>
             </div>
         </div>
     </div>
@@ -215,18 +219,44 @@ const posKO=pos=>POS_KO[pos]||pos||"알수없음";
 const kdaStr=(k,d,a)=>d===0?"Perfect":((k+a)/d).toFixed(2);
 const kdaClass=(k,d,a)=>{if(d===0)return"good-kda";const r=(k+a)/d;return r>=3?"good-kda":r>=2?"normal-kda":"bad-kda"};
 
-function teamLuck(p,info){
-    const dur=(info.gameDuration||1500)/60;
-    let s=0;
-    s+=Math.min((p.deaths>0?(p.kills+p.assists)/p.deaths:10)/5,1)*30;
-    s+=Math.min(((p.goldEarned||0)/Math.max(dur,1))/500,1)*20;
-    s+=Math.min((p.visionScore||0)/80,1)*15;
-    const cs=(p.totalMinionsKilled||0)+(p.neutralMinionsKilled||0);
-    s+=Math.min((cs/Math.max(dur,1))/8,1)*15;
-    s+=Math.min(((p.dragonKills||0)+(p.baronKills||0)+(p.riftHeraldKills||0))/3,1)*10;
-    s+=Math.min((p.turretKills||0)/2,1)*5;
-    s+=Math.min(cs/200,1)*5;
-    return Math.round(s*10)/10;
+function calcLuckPct(myP, teammates){
+    // 아군 4명 대비 사용자가 얼마나 잘했는지 0~100% 로 환산.
+    // 각 지표를 (나 - 아군평균)/(아군최댓값-아군최솟값) 범위로 정규화해 가중합,
+    // 50% = 아군 평균 실력, 높을수록 캐리한 경기.
+    const all = teammates;
+    const p = myP;
+
+    const metric = fn => {
+        const vals = all.map(x => fn(x));
+        const avg = vals.reduce((s,v)=>s+v,0)/vals.length;
+        const mx = Math.max(...vals), mn = Math.min(...vals);
+        const span = (mx-mn) || 1;
+        // 나의 위치를 -1(꼴찌)~+1(최강) 으로
+        return Math.max(Math.min((fn(p)-avg)/span, 1), -1);
+    };
+
+    const weights = {
+        kda: 0.28, damage: 0.20, vision: 0.12, gold: 0.12,
+        cs: 0.10, obj: 0.08, tower: 0.08, part: 0.02
+    };
+
+    const kdaOf = x => x.deaths>0 ? (x.kills+x.assists)/x.deaths : (x.kills+x.assists)>0 ? 10 : 1;
+
+    let total = 0, wsum = 0;
+    const add = (pos, w) => { total += pos*w; wsum += w; };
+
+    add(metric(kdaOf) * 1.2, weights.kda);            // KDA 는 편차가 커서 축소(1.2)
+    add(metric(x=>x.totalDamageDealtToChampions||0), weights.damage);
+    add(metric(x=>x.visionScore||0), weights.vision);
+    add(metric(x=>x.goldEarned||0), weights.gold);
+    add(metric(x=>(x.totalMinionsKilled||0)+(x.neutralMinionsKilled||0)), weights.cs);
+    add(metric(x=>((x.dragonKills||0)+(x.baronKills||0)+(x.riftHeraldKills||0))), weights.obj);
+    add(metric(x=>x.turretKills||0), weights.tower);
+    add(metric(x=>((x.kills||0)+(x.assists||0))/(0.333)), weights.part);
+
+    const n = wsum>0 ? total/wsum : 0;   // -1 ~ +1
+    const pct = Math.round( (n+1)/2 * 100 ); // 0~100
+    return Math.max(0, Math.min(100, pct));
 }
 
 function teamRank(tp,my){
@@ -289,6 +319,7 @@ async function fetchAllData(){
             if(pi<0)continue;
             const p=m.info.participants[pi];
             const tp=m.info.participants.filter(x=>x.teamId===p.teamId);
+            const luckPct=calcLuckPct(p,tp);
             games.push({
                 mode:QUEUE_MAP[m.info.queueId]||"알수없음",win:p.win,
                 gameTime:(m.info.gameCreation||m.info.gameStartTimestamp)?new Date((m.info.gameCreation||m.info.gameStartTimestamp)+9*3600*1000).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}):"-",
@@ -300,7 +331,8 @@ async function fetchAllData(){
                 gold:Math.round((p.goldEarned||0)/1000*10)/10,
                 visionScore:p.visionScore||0,
                 teamRank:teamRank(tp,puuid),
-                teamLuck:teamLuck(p,m.info)
+                teamLuck:luckPct.score,
+                gameTimeMs:(m.info.gameCreation||m.info.gameStartTimestamp||0)
             });
             await new Promise(r=>setTimeout(r,80));
         }
@@ -320,11 +352,13 @@ function renderData(games,account,rank){
         document.getElementById("lolprofile-link").href=`https://lolprofile.net/summoner/kr/${en}`;
     }
 
+    games.sort((a,b)=>(b.gameTimeMs||0)-(a.gameTimeMs||0));
+
     const total=games.length,wins=games.filter(g=>g.win).length;
     const wr=total?Math.round(wins/total*1000)/10:0;
     const avgKda=total?(games.reduce((s,g)=>s+g.kdaNum,0)/total).toFixed(2):"0";
-    const gl=games.filter(g=>g.teamLuck>=50).length;
-    const luckScore=total?Math.round(gl/total*100):0;
+    const gl=games.filter(g=>g.teamLuck>=60).length;
+    const luckScore=total?Math.round(games.reduce((s,g)=>s+g.teamLuck,0)/total):0;
     const avgRank=total?(games.reduce((s,g)=>s+g.teamRank,0)/total).toFixed(1):"-";
 
     document.getElementById("summary-stats").innerHTML=`
@@ -356,7 +390,7 @@ function renderData(games,account,rank){
         <td class="${kdaClass(g.kills,g.deaths,g.assists)}">${g.kills}/${g.deaths}/${g.assists} (${g.kdaStr})</td>
         <td>${g.cs}</td><td>${g.gold}k</td><td>${g.visionScore}</td>
         <td class="team-rank-${g.teamRank}">${g.teamRank}위</td>
-        <td class="${g.teamLuck>=50?"luck-good":"luck-bad"}">${g.teamLuck>=50?"O":"X"}</td></tr>`;
+        <td><span class="luck-${g.teamLuck>=60?"good":"bad"}" style="font-weight:700">${g.teamLuck}%</span></td></tr>`;
     });
     document.getElementById("game-tbody").innerHTML=tb;
 
@@ -374,9 +408,9 @@ function renderData(games,account,rank){
     document.getElementById("champion-tbody").innerHTML=ch;
 
     document.getElementById("luck-stats").innerHTML=`
-        <div class="stat-item"><div class="stat-value luck-good">${gl}경기</div><div class="stat-label">팀운 좋음</div></div>
-        <div class="stat-item"><div class="stat-value luck-bad">${total-gl}경기</div><div class="stat-label">팀운 나쁨</div></div>
-        <div class="stat-item"><div class="stat-value team-luck">${luckScore}%</div><div class="stat-label">팀운 점수</div></div>
+        <div class="stat-item"><div class="stat-value luck-good">${gl}경기</div><div class="stat-label">팀운 좋음 (60%이상)</div></div>
+        <div class="stat-item"><div class="stat-value luck-bad">${total-gl}경기</div><div class="stat-label">팀운 낮음 (60%미만)</div></div>
+        <div class="stat-item"><div class="stat-value team-luck">${luckScore}%</div><div class="stat-label">평균 팀운 점수</div></div>
         <div class="stat-item"><div class="stat-value">${avgRank}</div><div class="stat-label">평균 팀순위</div></div>`;
 }
 
