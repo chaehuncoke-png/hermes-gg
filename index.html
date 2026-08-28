@@ -291,7 +291,7 @@ async function fetchAllData(){
             const tp=m.info.participants.filter(x=>x.teamId===p.teamId);
             games.push({
                 mode:QUEUE_MAP[m.info.queueId]||"알수없음",win:p.win,
-                gameTime:(m.info.gameCreation||m.info.gameStartTimestamp)?new Date((m.info.gameCreation||m.info.gameStartTimestamp)+9*3600*1000).toLocaleString("ko-KR",{month:"M",day:"d",hour:"2-digit",minute:"2-digit"}):"-",
+                gameTime:(m.info.gameCreation||m.info.gameStartTimestamp)?new Date((m.info.gameCreation||m.info.gameStartTimestamp)+9*3600*1000).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}):"-",
                 champion:champN(p.championId),position:posKO(p.teamPosition),
                 kills:p.kills,deaths:p.deaths,assists:p.assists,
                 kdaStr:kdaStr(p.kills,p.deaths,p.assists),
