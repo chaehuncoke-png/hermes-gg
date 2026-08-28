@@ -97,6 +97,43 @@
         .no-key-notice ol li{margin-bottom:5px}
         .no-key-notice code{background:rgba(0,100,200,0.2);padding:2px 8px;border-radius:4px;color:#4da6ff;font-size:.9em}
         .no-key-notice .skip{margin-top:20px;color:#4a6a90;font-size:.85em}
+
+        /* ===== 반응형 (모바일) 최적화 ===== */
+        .container{padding:20px}
+        @media (max-width:700px){
+            .container{padding:12px}
+            .header{padding:24px 14px 22px;margin-bottom:16px}
+            .header h1{font-size:1.9em;letter-spacing:1px}
+            .logo-icon{width:44px;height:44px}
+            .header .subtitle{font-size:.9em}
+            .card{padding:16px;margin-bottom:14px}
+            .card h2{font-size:1.15em;margin-bottom:12px;padding-bottom:8px}
+            .search-box{padding:16px;margin-bottom:16px}
+            .search-row{flex-direction:column;gap:9px;align-items:stretch}
+            .search-row input[type="text"]{width:100%;min-width:0;font-size:1em;padding:15px}
+            .search-row button{width:100%;padding:15px;font-size:1.05em}
+            .rank-section{gap:14px}
+            .rank-box{min-width:0;width:100%;padding:18px}
+            .rank-tier{font-size:1.5em}
+            .stats-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+            .stat-item{padding:12px}
+            .stat-value{font-size:1.35em}
+            .stat-label{font-size:.8em}
+            .luck-formula{font-size:.85em;padding:14px}
+
+            /* 매치 테이블: 가로로 넘치지 않게 스크롤 가능(와이드)하게 + 첫 열 고정 */
+            .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+            .game-table{min-width:760px;font-size:.8em}
+            .game-table th,.game-table td{white-space:nowrap}
+
+            .source-link p{font-size:.85em}
+            .api-key-row{flex-direction:column}
+            .api-key-row button{width:100%}
+        }
+        @media (max-width:380px){
+            .stats-grid{grid-template-columns:1fr 1fr;gap:8px}
+            .header h1{font-size:1.6em}
+        }
     </style>
 </head>
 <body>
@@ -145,18 +182,22 @@
         <div class="card">
             <h2>최근 20경기 상세</h2>
             <p class="note">팀순위와 팀운은 KDA, 골드, 시야점수, 라인전, 오브젝트, 타워, CS를 종합 분석한 값</p>
+            <div class="table-wrap">
             <table class="game-table">
                 <thead><tr><th>#</th><th>시간</th><th>모드</th><th>결과</th><th>챔피언</th><th>라인</th><th>KDA</th><th>CS</th><th>골드</th><th>시야</th><th>팀순위</th><th>팀운</th></tr></thead>
                 <tbody id="game-tbody"></tbody>
             </table>
+            </div>
         </div>
         <div class="card"><h2>라인별 승률</h2><div class="stats-grid" id="position-stats"></div></div>
         <div class="card">
             <h2>챔피언별 성적</h2>
+            <div class="table-wrap">
             <table class="game-table">
                 <thead><tr><th>챔피언</th><th>경기수</th><th>승률</th><th>평균 KDA</th><th>주 라인</th></tr></thead>
                 <tbody id="champion-tbody"></tbody>
             </table>
+            </div>
         </div>
         <div class="card">
             <h2>팀운 분석</h2>
@@ -220,43 +261,43 @@ const kdaStr=(k,d,a)=>d===0?"Perfect":((k+a)/d).toFixed(2);
 const kdaClass=(k,d,a)=>{if(d===0)return"good-kda";const r=(k+a)/d;return r>=3?"good-kda":r>=2?"normal-kda":"bad-kda"};
 
 function calcLuckPct(myP, teammates){
-    // 아군 4명 대비 사용자가 얼마나 잘했는지 0~100% 로 환산.
-    // 각 지표를 (나 - 아군평균)/(아군최댓값-아군최솟값) 범위로 정규화해 가중합,
-    // 50% = 아군 평균 실력, 높을수록 캐리한 경기.
-    const all = teammates;
+    // 나의 실적을 같은 팀 아군 4명과 비교해 0~100% 로 환산.
+    // 각 지표에서 아군 4명의 최솟값(my)과 최댓값(최강 아군) 사이에서
+    // 내가 어느 위치인지를 계산. 50% = 아군 중간 실력.
+    const all = teammates;      // 아군 4명 (나 제외)
     const p = myP;
 
-    const metric = fn => {
+    // 지표별 아군 최솟값~최댓값 사이에서 나의 위치(0~1) 반환
+    const pos = fn => {
         const vals = all.map(x => fn(x));
-        const avg = vals.reduce((s,v)=>s+v,0)/vals.length;
-        const mx = Math.max(...vals), mn = Math.min(...vals);
-        const span = (mx-mn) || 1;
-        // 나의 위치를 -1(꼴찌)~+1(최강) 으로
-        return Math.max(Math.min((fn(p)-avg)/span, 1), -1);
+        if(vals.length===0) return 0.5;
+        const mn = Math.min(...vals), mx = Math.max(...vals);
+        const span = (mx - mn);
+        if(span <= 0) return 0.5;              // 전원 동일하면 중간
+        const mine = fn(p);
+        return Math.max(0, Math.min((mine - mn)/span, 1));
     };
 
     const weights = {
-        kda: 0.28, damage: 0.20, vision: 0.12, gold: 0.12,
-        cs: 0.10, obj: 0.08, tower: 0.08, part: 0.02
+        kda: 0.30, damage: 0.20, vision: 0.12, gold: 0.12,
+        cs: 0.10, obj: 0.08, tower: 0.08
     };
 
     const kdaOf = x => x.deaths>0 ? (x.kills+x.assists)/x.deaths : (x.kills+x.assists)>0 ? 10 : 1;
 
     let total = 0, wsum = 0;
-    const add = (pos, w) => { total += pos*w; wsum += w; };
+    const add = (v, w) => { total += v*w; wsum += w; };
 
-    add(metric(kdaOf) * 1.2, weights.kda);            // KDA 는 편차가 커서 축소(1.2)
-    add(metric(x=>x.totalDamageDealtToChampions||0), weights.damage);
-    add(metric(x=>x.visionScore||0), weights.vision);
-    add(metric(x=>x.goldEarned||0), weights.gold);
-    add(metric(x=>(x.totalMinionsKilled||0)+(x.neutralMinionsKilled||0)), weights.cs);
-    add(metric(x=>((x.dragonKills||0)+(x.baronKills||0)+(x.riftHeraldKills||0))), weights.obj);
-    add(metric(x=>x.turretKills||0), weights.tower);
-    add(metric(x=>((x.kills||0)+(x.assists||0))/(0.333)), weights.part);
+    add(pos(kdaOf), weights.kda);
+    add(pos(x=>x.totalDamageDealtToChampions||0), weights.damage);
+    add(pos(x=>x.visionScore||0), weights.vision);
+    add(pos(x=>x.goldEarned||0), weights.gold);
+    add(pos(x=>(x.totalMinionsKilled||0)+(x.neutralMinionsKilled||0)), weights.cs);
+    add(pos(x=>((x.dragonKills||0)+(x.baronKills||0)+(x.riftHeraldKills||0))), weights.obj);
+    add(pos(x=>x.turretKills||0), weights.tower);
 
-    const n = wsum>0 ? total/wsum : 0;   // -1 ~ +1
-    const pct = Math.round( (n+1)/2 * 100 ); // 0~100
-    return Math.max(0, Math.min(100, pct));
+    const n = wsum>0 ? total/wsum : 0.5;
+    return Math.max(0, Math.min(100, Math.round(n*100)));
 }
 
 function teamRank(tp,my){
@@ -274,6 +315,15 @@ async function fetchAllData(){
     const tl=document.getElementById("tag-line-input").value.trim();
     if(!gn||!tl){setStatus("닉네임과 태그를 입력하세요!","error");return}
 
+    // 전각(풀폭) 문자를 반각(반자)로 자동 변환 (Wｕｔｅ１ｌｌ -> Wutell1)
+    const toHalf = s => s.normalize("NFKC")
+        .replace(/[\uff01-\uff5e]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+        .replace(/\u3000/g," ")
+        .trim();
+    const gameName = toHalf(gn);
+    const tagLine = toHalf(tl);
+    if(!gameName||!tagLine){setStatus("닉네임과 태그를 입력하세요!","error");return}
+
     if(!hasApiKey){
         await checkKey();
     }
@@ -287,7 +337,7 @@ async function fetchAllData(){
 
     try{
         setLoading(true,"계정 정보 가져오는 중...");
-        const ar=await fetch(`/api/account?gameName=${encodeURIComponent(gn)}&tagLine=${encodeURIComponent(tl)}`);
+        const ar=await fetch(`/api/account?gameName=${encodeURIComponent(gameName)}&tagLine=${encodeURIComponent(tagLine)}`);
         const ad=await ar.json();
         if(ad.error)throw new Error(ad.error);
         const puuid=ad.puuid;
@@ -318,7 +368,7 @@ async function fetchAllData(){
             const pi=m.metadata.participants.indexOf(puuid);
             if(pi<0)continue;
             const p=m.info.participants[pi];
-            const tp=m.info.participants.filter(x=>x.teamId===p.teamId);
+            const tp=m.info.participants.filter(x=>x.teamId===p.teamId && x.puuid!==puuid);
             const luckPct=calcLuckPct(p,tp);
             games.push({
                 mode:QUEUE_MAP[m.info.queueId]||"알수없음",win:p.win,
@@ -331,7 +381,7 @@ async function fetchAllData(){
                 gold:Math.round((p.goldEarned||0)/1000*10)/10,
                 visionScore:p.visionScore||0,
                 teamRank:teamRank(tp,puuid),
-                teamLuck:luckPct.score,
+                teamLuck:luckPct,
                 gameTimeMs:(m.info.gameCreation||m.info.gameStartTimestamp||0)
             });
             await new Promise(r=>setTimeout(r,80));
