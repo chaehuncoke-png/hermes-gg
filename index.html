@@ -81,10 +81,6 @@
         .luck-formula ul{list-style:none;padding:0}.luck-formula li{margin:4px 0;color:#8ab4f8}
         .luck-formula li:before{content:"◆ ";color:#4da6ff;font-size:.7em}
 
-        .source-link{text-align:center;margin-top:25px;padding:18px;background:linear-gradient(135deg,rgba(10,25,65,0.7),rgba(15,35,80,0.5));border-radius:12px;border:1px solid rgba(80,140,230,0.15)}
-        .source-link a{color:#4da6ff;text-decoration:none;font-size:1em}.source-link a:hover{text-decoration:underline;color:#80cfff}
-        .source-link p{color:#4a7aaa;margin-bottom:8px;font-size:.9em}
-
         .loading{display:none;text-align:center;padding:40px}.loading.show{display:block}
         .spinner{border:4px solid rgba(80,140,230,0.15);border-top:4px solid #4da6ff;border-radius:50%;width:42px;height:42px;animation:spin .8s linear infinite;margin:0 auto 12px}
         @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
@@ -128,7 +124,6 @@
             .game-table{min-width:760px;font-size:.8em}
             .game-table th,.game-table td{white-space:nowrap}
 
-            .source-link p{font-size:.85em}
             .api-key-row{flex-direction:column}
             .api-key-row button{width:100%}
         }
@@ -222,13 +217,6 @@
             </div>
         </div>
     </div>
-
-    <div class="source-link">
-        <p>전적 정보 출처</p>
-        <a href="https://your.gg" target="_blank" id="yourgg-link">YOUR.GG</a>
-        &nbsp;|&nbsp;
-        <a href="https://lolprofile.net" target="_blank" id="lolprofile-link">LoLProfile</a>
-    </div>
 </div>
 
 <script>
@@ -304,7 +292,29 @@ function calcLuckPct(myP, teammates){
 
 function teamRank(all10,my){
     // 경기에 참가한 10명 전체 중에서 내가 몇 위인지 (1~10)
-    const sc=all10.map(p=>{let s=0;s+=p.deaths>0?(p.kills+p.assists)/p.deaths:10;s+=(p.goldEarned||0)/1000;s+=((p.totalMinionsKilled||0)+(p.neutralMinionsKilled||0))/10;s+=(p.visionScore||0)/10;return{puuid:p.puuid,s}});
+    // 포지션별 가중치: 서폿은 딜/CS 대신 시야·어시스트·탱킹/힐을 더 반영해 공정하게
+    const posW = {
+        "SUPPORT":{k:1.0,g:0.6,cs:0.2,v:2.5,sup:1.4,duel:0.2},
+        "UTILITY":{k:1.0,g:0.6,cs:0.2,v:2.5,sup:1.4,duel:0.2},
+        "JUNGLE": {k:1.0,g:1.0,cs:0.7,v:1.2,sup:0.4,duel:1.0},
+        "TOP":    {k:1.0,g:1.0,cs:1.1,v:0.6,sup:0.4,duel:1.2},
+        "MID":    {k:1.0,g:1.0,cs:1.0,v:0.6,sup:0.3,duel:1.0},
+        "BOTTOM": {k:1.0,g:1.1,cs:1.2,v:0.6,sup:0.3,duel:1.2},
+        "ADC":    {k:1.0,g:1.1,cs:1.2,v:0.6,sup:0.3,duel:1.2}
+    };
+    const sc=all10.map(p=>{
+        const w=posW[p.teamPosition]||posW.MID;
+        let s=0;
+        s+=w.k*(p.deaths>0?(p.kills+p.assists)/p.deaths:10);
+        s+=w.g*(p.goldEarned||0)/1000;
+        s+=w.cs*((p.totalMinionsKilled||0)+(p.neutralMinionsKilled||0))/10;
+        s+=w.v*(p.visionScore||0)/10;
+        // 서폿: 흡수한 피해 + 아군 힐/실드(원하는 건 아니지만 공정성 위해 포함)
+        s+=w.duel*((p.totalDamageDealtToChampions||0))/1000;
+        s+=w.sup*(((p.totalDamageTaken||0)/1000)+((p.totalHeal||0)/3000));
+        s+=w.sup*((p.assists||0));
+        return{puuid:p.puuid,s};
+    });
     sc.sort((a,b)=>b.s-a.s);
     const i=sc.findIndex(x=>x.puuid===my);return i>=0?i+1:10;
 }
@@ -400,11 +410,6 @@ async function fetchAllData(){
 function renderData(games,account,rank){
     document.getElementById("update-time").textContent="Last Updated: "+new Date().toLocaleString("ko-KR");
     document.getElementById("result-area").classList.add("show");
-    if(account){
-        const en=encodeURIComponent(`${account.gameName}-${account.tagLine}`);
-        document.getElementById("yourgg-link").href=`https://your.gg/ko/kr/profile/${en}`;
-        document.getElementById("lolprofile-link").href=`https://lolprofile.net/summoner/kr/${en}`;
-    }
 
     games.sort((a,b)=>(b.gameTimeMs||0)-(a.gameTimeMs||0));
 
