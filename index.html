@@ -146,7 +146,7 @@
             <h2>최근 20경기 상세</h2>
             <p class="note">팀순위와 팀운은 KDA, 골드, 시야점수, 라인전, 오브젝트, 타워, CS를 종합 분석한 값</p>
             <table class="game-table">
-                <thead><tr><th>#</th><th>모드</th><th>결과</th><th>챔피언</th><th>라인</th><th>KDA</th><th>CS</th><th>골드</th><th>시야</th><th>팀순위</th><th>팀운</th></tr></thead>
+                <thead><tr><th>#</th><th>시간</th><th>모드</th><th>결과</th><th>챔피언</th><th>라인</th><th>KDA</th><th>CS</th><th>골드</th><th>시야</th><th>팀순위</th><th>팀운</th></tr></thead>
                 <tbody id="game-tbody"></tbody>
             </table>
         </div>
@@ -185,9 +185,9 @@
 </div>
 
 <script>
-const POS_KO={"TOP":"탑","JUNGLE":"정글러","MID":"미드","MIDDLE":"미드","BOTTOM":"바텀","ADC":"바텀","UTILITY":"서포터","SUPPORT":"서포터"};
-const POS_CSS={"탑":"position-top","정글러":"position-jungle","미드":"position-mid","바텀":"position-bot","서포터":"position-support"};
-const POS_BG={"정글러":"#166534","서포터":"#1e3a5f","탑":"#7f1d1d","미드":"#4c1d95","바텀":"#7c2d12"};
+const POS_KO={"TOP":"탑","JUNGLE":"정글","MID":"미드","MIDDLE":"미드","BOTTOM":"바텀","ADC":"바텀","UTILITY":"서포터","SUPPORT":"서포터"};
+const POS_CSS={"탑":"position-top","정글":"position-jungle","미드":"position-mid","바텀":"position-bot","서포터":"position-support"};
+const POS_BG={"정글":"#166534","서포터":"#1e3a5f","탑":"#7f1d1d","미드":"#4c1d95","바텀":"#7c2d12"};
 const QUEUE_MAP={420:"솔로랭크",440:"자유랭크",400:"일반",450:"칼바람",900:"우르프"};
 let championMap={},isFetching=false,autoFetchTimer=null,hasApiKey=false;
 
@@ -291,6 +291,7 @@ async function fetchAllData(){
             const tp=m.info.participants.filter(x=>x.teamId===p.teamId);
             games.push({
                 mode:QUEUE_MAP[m.info.queueId]||"알수없음",win:p.win,
+                gameTime:(m.info.gameCreation||m.info.gameStartTimestamp)?new Date((m.info.gameCreation||m.info.gameStartTimestamp)+9*3600*1000).toLocaleString("ko-KR",{month:"M",day:"d",hour:"2-digit",minute:"2-digit"}):"-",
                 champion:champN(p.championId),position:posKO(p.teamPosition),
                 kills:p.kills,deaths:p.deaths,assists:p.assists,
                 kdaStr:kdaStr(p.kills,p.deaths,p.assists),
@@ -340,15 +341,15 @@ function renderData(games,account,rank){
 
     document.getElementById("rank-section").innerHTML=`
         <div class="rank-box"><div class="rank-label">솔로 랭크</div>
-            <div class="rank-tier" style="color:${tc[sr.tier?.toLowerCase()]||'#cd7f32'}">${sr.tier||"Unranked"} ${sr.rank||""}</div>
-            <div>${sr.leaguePoints||0} LP</div><div>${sr.wins||0}W ${sr.losses||0}L (${sw}%)</div></div>
+            <div class="rank-tier" style="color:${tc[sr.tier?.toLowerCase()]||'#cd7f32'}">${sr.tier||"Unranked"} ${sr.rank||""} ${sr.leaguePoints||0} LP</div>
+            <div>${sr.wins||0}승 ${sr.losses||0}패 (${sw}%)</div></div>
         <div class="rank-box"><div class="rank-label">자유 랭크</div>
-            <div class="rank-tier" style="color:${tc[fr.tier?.toLowerCase()]||'#c0c0c0'}">${fr.tier||"Unranked"} ${fr.rank||""}</div>
-            <div>${fr.leaguePoints||0} LP</div><div>${fr.wins||0}W ${fr.losses||0}L (${fw}%)</div></div>`;
+            <div class="rank-tier" style="color:${tc[fr.tier?.toLowerCase()]||'#c0c0c0'}">${fr.tier||"Unranked"} ${fr.rank||""} ${fr.leaguePoints||0} LP</div>
+            <div>${fr.wins||0}승 ${fr.losses||0}패 (${fw}%)</div></div>`;
 
     let tb="";
     games.forEach((g,i)=>{
-        tb+=`<tr><td>${i+1}</td><td>${g.mode}</td>
+        tb+=`<tr><td>${i+1}</td><td style="color:#6a9fd8;white-space:nowrap">${g.gameTime}</td><td>${g.mode}</td>
         <td class="${g.win?"victory":"defeat"}">${g.win?"승리":"패배"}</td>
         <td class="champion-name">${g.champion}</td>
         <td><span class="position-badge ${POS_CSS[g.position]||"position-jungle"}">${g.position}</span></td>
