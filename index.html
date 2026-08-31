@@ -292,31 +292,50 @@ function calcLuckPct(myP, teammates){
 
 function teamRank(all10,my){
     // 경기에 참가한 10명 전체 중에서 내가 몇 위인지 (1~10)
-    // 포지션별 가중치: 서폿은 딜/CS 대신 시야·어시스트·탱킹/힐을 더 반영해 공정하게
-    const posW = {
-        "SUPPORT":{k:1.0,g:0.6,cs:0.2,v:2.5,sup:1.4,duel:0.2},
-        "UTILITY":{k:1.0,g:0.6,cs:0.2,v:2.5,sup:1.4,duel:0.2},
-        "JUNGLE": {k:1.0,g:1.0,cs:0.7,v:1.2,sup:0.4,duel:1.3},
-        "TOP":    {k:1.0,g:1.0,cs:1.1,v:0.6,sup:0.4,duel:1.2},
-        "MID":    {k:1.0,g:1.0,cs:1.0,v:0.6,sup:0.3,duel:1.0},
-        "BOTTOM": {k:1.0,g:1.1,cs:1.2,v:0.6,sup:0.3,duel:1.2},
-        "ADC":    {k:1.0,g:1.1,cs:1.2,v:0.6,sup:0.3,duel:1.2}
-    };
-    const sc=all10.map(p=>{
-        const w=posW[p.teamPosition]||posW.MID;
-        let s=0;
-        s+=w.k*(p.deaths>0?(p.kills+p.assists)/p.deaths:10);
-        s+=w.g*(p.goldEarned||0)/1000;
-        s+=w.cs*((p.totalMinionsKilled||0)+(p.neutralMinionsKilled||0))/10;
-        s+=w.v*(p.visionScore||0)/10;
-        // 서폿: 흡수한 피해 + 아군 힐/실드(원하는 건 아니지만 공정성 위해 포함)
-        s+=w.duel*((p.totalDamageDealtToChampions||0))/1000;
-        s+=w.sup*(((p.totalDamageTaken||0)/1000)+((p.totalHeal||0)/3000));
-        s+=w.sup*((p.assists||0));
-        return{puuid:p.puuid,s};
+    // "서포트 여부" 확인: 실제로 보조 새끼 선택/낮은 딜+높은 시야 임에도 판별.
+    // 각 지표를 10명 기준 0~100으로 정규화 후 가중합해, KDA가 좋으면 확실히 높게.
+    const isSup = p => (p.totalDamageDealtToChampions||0)<6000 &&
+                       (p.goldEarned||0)>0 &&
+                       (p.teamPosition==="SUPPORT"||p.teamPosition==="UTILITY") &&
+                       (p.assists||0)>=3;
+    const stats = all10.map(p=>{
+        const kda = p.deaths>0? (p.kills+p.assists)/p.deaths : (p.kills+p.assists)>0?15:1;
+        return {
+            puuid:p.puuid, sup:isSup(p),
+            kda, dmg:p.totalDamageDealtToChampions||0, gold:p.goldEarned||0,
+            cs:(p.totalMinionsKilled||0)+(p.neutralMinionsKilled||0),
+            vis:p.visionScore||0, obj:(p.dragonKills||0)+(p.baronKills||0)+(p.riftHeraldKills||0),
+            tur:p.turretKills||0, tank:p.totalDamageTaken||0, heal:p.totalHeal||0, as:p.assists||0
+        };
     });
-    sc.sort((a,b)=>b.s-a.s);
-    const i=sc.findIndex(x=>x.puuid===my);return i>=0?i+1:10;
+    // 각 지표를 0~100 으로 정규화
+    const norm = key => {
+        const vals = stats.map(s=>s[key]);
+        const mx = Math.max(...vals); if(mx<=0) return()=>0;
+        return s => (s[key]/mx)*100;
+    };
+    const n={dmg:norm('dmg'),gold:norm('gold'),cs:norm('cs'),vis:norm('vis'),
+             obj:norm('obj'),tur:norm('tur'),tank:norm('tank'),heal:norm('heal'),as:norm('as')};
+
+    const scored = stats.map(s=>{
+        let score=0;
+        // KDA 는 0~100 자체로 (15+/15 데스=100)
+        score += Math.min(s.kda/ (all10.length>0? Math.max(...stats.map(x=>x.kda)) : 15), 1) * 45;
+        score += n.dmg(s)*0.15;   // 딜 15%
+        score += n.gold(s)*0.12;  // 골드 12%
+        score += n.cs(s)*0.10;    // CS 10%
+        score += n.vis(s)*0.10;   // 시야 10%
+        score += n.obj(s)*0.05;   // 오브젝트 5%
+        score += n.tur(s)*0.05;   // 타워 5%
+        score += n.as(s)*0.08;    // 어시스트 8% (서폿 불리함 완화)
+        if(s.sup){               // 서폿은 딜 부족분을 탱킹/힐로 보정
+            score += n.tank(s)*0.06 + n.heal(s)*0.06 + n.vis(s)*0.06;
+            score += n.as(s)*0.05;
+        }
+        return {puuid:s.puuid, score};
+    });
+    scored.sort((a,b)=>b.score-a.score);
+    const i=scored.findIndex(x=>x.puuid===my);return i>=0?i+1:10;
 }
 
 function setStatus(m,t){const e=document.getElementById("api-status");e.textContent=m;e.className="status "+(t||"")}
