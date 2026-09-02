@@ -2,7 +2,7 @@
 hermes.gg - 롤 전적 검색 서버
 """
 import os
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, Response
 import requests as http_requests
 
 app = Flask(__name__, static_folder='.')
