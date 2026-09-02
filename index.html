@@ -240,12 +240,21 @@ function setupAutoSearch(){
 }
 
 async function loadChampData(){
-    try{const vr=await fetch("https://ddragon.leagueoflegends.com/api/versions.json");const vs=await vr.json();
-    const r=await fetch(`https://ddragon.leagueoflegends.com/cdn/${vs[0]}/data/ko_KR/champion.json`);const d=await r.json();
-    for(const[k,v]of Object.entries(d.data))championMap[v.key]=v.name}catch(e){}
+    if(Object.keys(championMap).length>0) return; // 이미 로드됨
+    // 정확한 한글 이름을 위해 champion.json 로드 (실패 시 재시도)
+    for(let attempt=0; attempt<3 && Object.keys(championMap).length===0; attempt++){
+        try{
+            const vr=await fetch("https://ddragon.leagueoflegends.com/api/versions.json");
+            const vs=await vr.json();
+            const r=await fetch(`https://ddragon.leagueoflegends.com/cdn/${vs[0]}/data/ko_KR/champion.json`);
+            const d=await r.json();
+            for(const[k,v]of Object.entries(d.data))championMap[v.key]=v.name;
+        }catch(e){ await new Promise(res=>setTimeout(res,600)); }
+    }
 }
 
-const champN=id=>championMap[id]||"알수없음";
+const champN=id=>championMap[id]||`챔피언 ${id}`;
+
 const posKO=pos=>POS_KO[pos]||pos||"알수없음";
 const kdaStr=(k,d,a)=>d===0?"Perfect":((k+a)/d).toFixed(2);
 const kdaClass=(k,d,a)=>{if(d===0)return"good-kda";const r=(k+a)/d;return r>=3?"good-kda":r>=2?"normal-kda":"bad-kda"};
