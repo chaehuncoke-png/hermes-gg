@@ -63,9 +63,10 @@
         .game-table td{padding:8px 5px;text-align:center;border-bottom:1px solid rgba(80,140,230,0.08)}
         .game-table tr:hover{background:rgba(30,70,140,0.15)}
         .victory{color:#4ade80;font-weight:700}.defeat{color:#f87171;font-weight:700}
-        .result-badge{display:inline-block;padding:5px 12px;border-radius:8px;font-weight:800;font-size:.92em;letter-spacing:.3px}
-        .bg-win{background:rgba(74,222,128,0.14);color:#4ade80;border:1px solid rgba(74,222,128,0.35)}
-        .bg-loss{background:rgba(248,113,113,0.14);color:#f87171;border:1px solid rgba(248,113,113,0.35)}
+        .result-cell{font-weight:800;font-size:.95em;letter-spacing:.3px;border-radius:8px}
+        .bg-win{background:rgba(74,222,128,0.16);color:#4ade80}
+        .bg-loss{background:rgba(248,113,113,0.16);color:#f87171}
+        .bg-remake{background:rgba(148,163,184,0.16);color:#9ca3af}
         .game-detail-card{background:linear-gradient(180deg,rgba(10,25,60,0.55),rgba(5,10,30,0.85));border:1px solid rgba(80,140,230,0.15)}
         .game-detail-card td{padding:13px 12px}
         .game-detail-card .game-table th{padding:12px 12px}
@@ -184,14 +185,14 @@
         <div class="card"><h2>최근 20경기 요약</h2><div class="stats-grid" id="summary-stats"></div></div>
         <div class="card game-detail-card">
             <h2>최근 경기 상세 <button id="refresh-btn" onclick="fetchAllData()" style="float:right;padding:6px 14px;border:none;border-radius:8px;background:linear-gradient(135deg,#1a6dd4,#2196f3);color:#fff;cursor:pointer;font-weight:700;font-size:.8em">새로고침</button></h2>
-            <p class="note">팀운·등급·MVP는 KDA, 딜량, 시야, 오브젝트, 타워, CS를 아군과 비교해 산출 / 순위는 경기 참가 10명 전체 기준 / ▶ 클릭하면 팀원 상세 + 골드 수급 그래프</p>
+            <p class="note">▶ 클릭하면 팀원 골드 그래프 + 상대 라이너 상세 확인 / 승리=초록, 패배=빨강, 다시하기=회색</p>
             <div class="table-wrap">
             <table class="game-table">
                 <thead><tr><th>▶</th><th>#</th><th>시간</th><th>모드</th><th>결과</th><th>등급</th><th>챔피언</th><th>라인</th><th>KDA</th><th>딜(k)</th><th>상대 라이너</th><th>전체순위</th><th>팀운</th></tr></thead>
                 <tbody id="game-tbody"></tbody>
             </table>
             </div>
-            <div style="text-align:center;margin-top:14px"><button id="more-btn" onclick="showMoreGames()" style="padding:11px 34px;border:none;border-radius:10px;background:linear-gradient(135deg,#1a6dd4,#2196f3);color:#fff;cursor:pointer;font-weight:700;font-size:.95em">더보기 ▼</button></div>
+            <div style="text-align:center;margin-top:14px"><button id="more-btn" onclick="showMoreGames()" style="padding:11px 34px;border:none;border-radius:10px;background:linear-gradient(135deg,#1a6dd4,#2196f3);color:#fff;cursor:pointer;font-weight:700;font-size:.95em">더보기 ▼</button><button id="collapse-btn" onclick="collapseMoreGames()" style="display:none;padding:11px 34px;border:none;border-radius:10px;background:#4b5563;color:#e5e7eb;cursor:pointer;font-weight:700;font-size:.95em">처음 20개로 접기 ▲</button></div>
         </div>
         <div class="card"><h2>라인별 승률</h2><div class="stats-grid" id="position-stats"></div></div>
         <div class="card">
@@ -453,6 +454,7 @@ async function fetchAllData(){
 
             games.push({
                 mode:QUEUE_MAP[m.info.queueId]||"알수없음",win:p.win,
+                remake:(m.info.gameEndReason==="remake"||(m.info.gameDuration||999)<300),
                 gameTime:(m.info.gameCreation||m.info.gameStartTimestamp)?new Date((m.info.gameCreation||m.info.gameStartTimestamp)+9*3600*1000).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}):"-",
                 champion:champN(p.championId),position:posKO(p.teamPosition),
                 kills:p.kills,deaths:p.deaths,assists:p.assists,
@@ -489,14 +491,16 @@ function renderData(games,account,rank){
 
     const gradeColor={"S":"#e63946","A":"#ff8c42","B":"#ffd166","C":"#8ab4f8","D":"#6a9fd8"};
 
-    const total=games.length,wins=games.filter(g=>g.win).length;
+    const realGames=games.filter(g=>!g.remake);
+    const total=realGames.length,wins=realGames.filter(g=>g.win).length;
     const wr=total?Math.round(wins/total*1000)/10:0;
     // 평균 KDA = (킬+어시 합계) / (데스 합계) 로 전체 집계
     const sumK=games.reduce((s,g)=>s+g.kills,0), sumD=games.reduce((s,g)=>s+g.deaths,0), sumA=games.reduce((s,g)=>s+g.assists,0);
     const avgKda=sumD>0?((sumK+sumA)/sumD).toFixed(2):"Perfect";
     const gl=games.filter(g=>g.teamLuck>=50).length;
-    const luckScore=total?Math.round(games.reduce((s,g)=>s+g.teamLuck,0)/total):0;
-    const avgRank=total?(games.reduce((s,g)=>s+g.teamRank,0)/total).toFixed(1):"-";
+    const allC=games.length;
+    const luckScore=allC?Math.round(games.reduce((s,g)=>s+g.teamLuck,0)/allC):0;
+    const avgRank=allC?(games.reduce((s,g)=>s+g.teamRank,0)/allC).toFixed(1):"-";
     const mvpCount=games.filter(g=>g.isMVP).length;
     const gradeCounts={S:games.filter(g=>g.grade==="S").length,A:games.filter(g=>g.grade==="A").length,B:games.filter(g=>g.grade==="B").length,C:games.filter(g=>g.grade==="C").length,D:games.filter(g=>g.grade==="D").length};
     const bestGrade = gradeCounts.S>0?"S":(gradeCounts.A>0?"A":(gradeCounts.B>0?"B":(gradeCounts.C>0?"C":"D")));
@@ -528,6 +532,7 @@ function renderData(games,account,rank){
     renderGameRows(games);
     const moreBtn=document.getElementById("more-btn");
     moreBtn.style.display = games.length>20 ? "inline-block":"none";
+    document.getElementById("collapse-btn").style.display="none";
 
     const pm={};games.forEach(g=>{if(!pm[g.position])pm[g.position]={c:0,w:0,laneWin:0,laneOpp:0};pm[g.position].c++;if(g.win)pm[g.position].w++;if(g.oppWin!==null){pm[g.position].laneOpp++;if(g.oppWin)pm[g.position].laneWin++;}});
     let ph="";for(const[p,st]of Object.entries(pm)){
@@ -556,10 +561,10 @@ function renderGameRows(){
     const games=renderedGames.slice(0,showCount);
     let tb="";
     games.forEach((g,i)=>{
-        tb+=`<tr class="game-row-${i}" style="cursor:pointer" onclick="toggleRow(${i})">
-        <td><span id="arrow-${i}" style="color:#4da6ff;font-weight:800;display:inline-block;transition:transform .2s">▶</span></td>
+        tb+=`<tr class="game-row-${i}">
+        <td style="cursor:pointer" onclick="toggleRow(${i})" title="클릭하여 상세보기"><span id="arrow-${i}" style="color:#4da6ff;font-weight:800;display:inline-block;transition:transform .2s">▶</span></td>
         <td>${i+1}</td><td style="color:#6a9fd8;white-space:nowrap">${g.gameTime}</td><td>${g.mode}</td>
-        <td><span class="result-badge ${g.win?'bg-win':'bg-loss'}">${g.win?"승리":"패배"}${g.isMVP?' <b style="color:#ffd700">MVP</b>':''}</span></td>
+        <td class="result-cell ${g.remake?'bg-remake':(g.win?'bg-win':'bg-loss')}">${g.remake?'다시하기':(g.win?'승리':'패배')}${(!g.remake&&g.isMVP)?' <b style="color:#ffd700">MVP</b>':''}</td>
         <td><span style="display:inline-block;min-width:28px;padding:2px 8px;border-radius:6px;background:${gradeColor[g.grade]||'#6a9fd8'};color:#fff;font-weight:800">${g.grade}</span></td>
         <td class="champion-name" style="white-space:nowrap">${g.champion}</td>
         <td><span class="position-badge ${POS_CSS[g.position]||"position-jungle"}">${g.position}</span></td>
@@ -579,7 +584,14 @@ function showMoreGames(){
     showCount=renderedGames.length;
     renderGameRows();
     document.getElementById("more-btn").style.display="none";
-    // 확장된 행 유지를 위해 재렌더
+    document.getElementById("collapse-btn").style.display="inline-block";
+}
+
+function collapseMoreGames(){
+    showCount=20;
+    renderGameRows();
+    document.getElementById("more-btn").style.display="inline-block";
+    document.getElementById("collapse-btn").style.display="none";
 }
 
 function toggleRow(i){
@@ -612,6 +624,20 @@ function renderDetail(i){
         </div>`;
     }).join('');
     el.innerHTML=`<div style="text-align:left;padding:8px">
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px">
+            <div style="background:rgba(30,70,140,0.35);padding:8px 14px;border-radius:8px">
+                <span style="color:#8ab4f8;font-size:.82em;margin-right:6px">상대 라이너</span>
+                <b style="color:#fff">${g.opponent.champion}</b>
+                <span style="margin:0 8px;color:#6a9fd8">|</span>
+                <span class="${g.oppWin===false?'bad-kda':(g.oppWin===true?'good-kda':'normal-kda')}" style="font-weight:700">${g.opponent.kdaStr} [${g.oppWin===false?'패':(g.oppWin===true?'승':'무')}]</span>
+            </div>
+            <div style="background:rgba(30,70,140,0.35);padding:8px 14px;border-radius:8px">
+                <span style="color:#8ab4f8;font-size:.82em;margin-right:6px">나의 라인</span>
+                <b style="color:#fff">${g.champion}</b>
+                <span style="margin:0 8px;color:#6a9fd8">|</span>
+                <span style="color:#6a9fd8">${g.position}</span>
+            </div>
+        </div>
         <div style="color:#4da6ff;font-weight:700;margin-bottom:6px">팀원 골드 수급량 (금색 = 나)</div>
         ${rows}
     </div>`;
