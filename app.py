@@ -7,6 +7,23 @@ import requests as http_requests
 
 app = Flask(__name__, static_folder='.')
 
+CHAMPION_CACHE = None
+
+def load_champions():
+    """ddragon 챔피언 id->한글 이름 맵을 서버에서 캐시해 반환 (브라우저 네트워크 의존 제거)"""
+    global CHAMPION_CACHE
+    if CHAMPION_CACHE:
+        return CHAMPION_CACHE
+    try:
+        vs = http_requests.get("https://ddragon.leagueoflegends.com/api/versions.json", timeout=10).json()
+        d = http_requests.get(
+            f"https://ddragon.leagueoflegends.com/cdn/{vs[0]}/data/ko_KR/champion.json", timeout=15
+        ).json()
+        CHAMPION_CACHE = {v["key"]: v["name"] for v in d["data"].values()}
+    except Exception:
+        CHAMPION_CACHE = {}
+    return CHAMPION_CACHE
+
 API_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".riot_key")
 
 def get_key():
@@ -74,6 +91,13 @@ def api_matches(puuid):
     d, c = riot_get(f"https://asia.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?count={cnt}&queue={q}", k)
     if c != 200: return jsonify({"error":"매치 목록 오류"})
     return jsonify(d)
+
+@app.route("/api/champions")
+def api_champions():
+    m = load_champions()
+    if not m:
+        return jsonify({"error":"챔피언 데이터를 불러오지 못했습니다."})
+    return jsonify(m)
 
 @app.route("/api/match/<mid>")
 def api_match(mid):
