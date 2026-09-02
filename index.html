@@ -70,6 +70,11 @@
         .game-detail-card{background:linear-gradient(180deg,rgba(10,25,60,0.55),rgba(5,10,30,0.85));border:1px solid rgba(80,140,230,0.15)}
         .game-detail-card td{padding:13px 12px}
         .game-detail-card .game-table th{padding:12px 12px}
+        .filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px}
+        .chip{padding:7px 18px;border-radius:20px;border:1px solid rgba(80,140,230,0.25);background:rgba(10,25,60,0.6);color:#9db8e8;cursor:pointer;font-weight:700;font-size:.85em;transition:all .15s}
+        .chip.active{background:linear-gradient(135deg,#1a6dd4,#2196f3);color:#fff;border-color:transparent}
+        .stat-pill{background:rgba(30,70,140,0.35);padding:6px 12px;border-radius:8px;font-size:.85em;color:#cfe0f5;font-weight:700;white-space:nowrap}
+        .stat-pill b{color:#fff}
         .good-kda{color:#4ade80}.bad-kda{color:#f87171}.normal-kda{color:#fbbf24}
         .team-rank-1{color:#ffd700;font-weight:700}.team-rank-2{color:#c0c0c0;font-weight:700}
         .team-rank-3{color:#cd7f32}.team-rank-4{color:#6a9fd8}.team-rank-5{color:#4a6a90}
@@ -186,6 +191,13 @@
         <div class="card game-detail-card">
             <h2>최근 경기 상세 <button id="refresh-btn" onclick="fetchAllData()" style="float:right;padding:6px 14px;border:none;border-radius:8px;background:linear-gradient(135deg,#1a6dd4,#2196f3);color:#fff;cursor:pointer;font-weight:700;font-size:.8em">새로고침</button></h2>
             <p class="note">▶ 클릭하면 팀원 골드 그래프 + 상대 라이너 상세 확인 / 승리=초록, 패배=빨강, 다시하기=회색</p>
+            <div class="filter-bar" id="filter-bar">
+                <button class="chip active" data-q="all" onclick="setFilter('all')" type="button">전체</button>
+                <button class="chip" data-q="420" onclick="setFilter('420')" type="button">솔로랭크</button>
+                <button class="chip" data-q="440" onclick="setFilter('440')" type="button">자유랭크</button>
+                <button class="chip" data-q="450" onclick="setFilter('450')" type="button">칼바람</button>
+                <button class="chip" data-q="400" onclick="setFilter('400')" type="button">일반</button>
+            </div>
             <div class="table-wrap">
             <table class="game-table">
                 <thead><tr><th>▶</th><th>#</th><th>시간</th><th>모드</th><th>결과</th><th>등급</th><th>챔피언</th><th>라인</th><th>KDA</th><th>딜(k)</th><th>상대 라이너</th><th>전체순위</th><th>팀운</th></tr></thead>
@@ -231,9 +243,10 @@
 const POS_KO={"TOP":"탑","JUNGLE":"정글","MID":"미드","MIDDLE":"미드","BOTTOM":"바텀","ADC":"바텀","UTILITY":"서포터","SUPPORT":"서포터"};
 const POS_CSS={"탑":"position-top","정글":"position-jungle","미드":"position-mid","바텀":"position-bot","서포터":"position-support"};
 const POS_BG={"정글":"#166534","서포터":"#1e3a5f","탑":"#7f1d1d","미드":"#4c1d95","바텀":"#7c2d12"};
-const QUEUE_MAP={420:"솔로랭크",440:"자유랭크",400:"일반",450:"칼바람",900:"우르프"};
+const QUEUE_MAP={420:"솔로랭크",440:"자유랭크",400:"일반",430:"일반",450:"칼바람",490:"빠른대전",900:"우르프"};
+    const FILTERS={all:[],420:[420],440:[440],450:[450],400:[400,430]};
 let championMap={},isFetching=false,autoFetchTimer=null,hasApiKey=false;
-let renderedGames=[],showCount=20;
+let renderedGames=[],showCount=20,currentFilter="all";
 
 async function checkKey(){
     const r=await fetch("/api/has-key");
@@ -453,8 +466,9 @@ async function fetchAllData(){
             })).sort((a,b)=>b.gold-a.gold);
 
             games.push({
-                mode:QUEUE_MAP[m.info.queueId]||"알수없음",win:p.win,
+                mode:QUEUE_MAP[m.info.queueId]||"알수없음",queue:m.info.queueId,win:p.win,
                 remake:(m.info.gameEndReason==="remake"||(m.info.gameDuration||999)<300),
+                obj:(()=>{const t=(m.info.teams||[]).find(t=>t.teamId===p.teamId);return t?{dragon:t.objectives?.dragon?.kills||0,baron:t.objectives?.baron?.kills||0,tower:t.objectives?.tower?.kills||0}:{dragon:0,baron:0,tower:0}})(),
                 gameTime:(m.info.gameCreation||m.info.gameStartTimestamp)?new Date((m.info.gameCreation||m.info.gameStartTimestamp)+9*3600*1000).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}):"-",
                 champion:champN(p.championId),position:posKO(p.teamPosition),
                 kills:p.kills,deaths:p.deaths,assists:p.assists,
@@ -494,6 +508,11 @@ function renderData(games,account,rank){
     const realGames=games.filter(g=>!g.remake);
     const total=realGames.length,wins=realGames.filter(g=>g.win).length;
     const wr=total?Math.round(wins/total*1000)/10:0;
+    // 최근 10경기 폼 (OP.GG 최근 폼 개념)
+    const last10=games.slice(0,10).filter(g=>!g.remake);
+    const formWr=last10.length?Math.round(last10.filter(g=>g.win).length/last10.length*1000)/10:0;
+    const fk=last10.reduce((s,g)=>s+g.kills,0),fd=last10.reduce((s,g)=>s+g.deaths,0),fa=last10.reduce((s,g)=>s+g.assists,0);
+    const formKda=fd>0?((fk+fa)/fd).toFixed(2):"Perfect";
     // 평균 KDA = (킬+어시 합계) / (데스 합계) 로 전체 집계
     const sumK=games.reduce((s,g)=>s+g.kills,0), sumD=games.reduce((s,g)=>s+g.deaths,0), sumA=games.reduce((s,g)=>s+g.assists,0);
     const avgKda=sumD>0?((sumK+sumA)/sumD).toFixed(2):"Perfect";
@@ -508,6 +527,8 @@ function renderData(games,account,rank){
     document.getElementById("summary-stats").innerHTML=`
         <div class="stat-item"><div class="stat-value">${avgKda}</div><div class="stat-label">평균 KDA</div></div>
         <div class="stat-item"><div class="stat-value win-rate">${wr}%</div><div class="stat-label">승률 (${wins}W ${total-wins}L)</div></div>
+        <div class="stat-item"><div class="stat-value" style="color:#a78bfa">${formWr}%</div><div class="stat-label">최근 10경기 폼 승률</div></div>
+        <div class="stat-item"><div class="stat-value" style="color:#a78bfa">${formKda}</div><div class="stat-label">최근 10경기 폼 KDA</div></div>
         <div class="stat-item"><div class="stat-value team-luck">${luckScore}%</div><div class="stat-label">팀운 점수</div></div>
         <div class="stat-item"><div class="stat-value">${avgRank}</div><div class="stat-label">평균 전체순위</div></div>
         <div class="stat-item"><div class="stat-value">${mvpCount}</div><div class="stat-label">MVP 획득</div></div>
@@ -529,10 +550,10 @@ function renderData(games,account,rank){
 
     showCount=20; // 처음엔 20개만
     renderedGames=games;
+    currentFilter="all";
+    document.querySelectorAll("#filter-bar .chip").forEach(c=>c.classList.toggle("active",c.dataset.q==="all"));
     renderGameRows(games);
-    const moreBtn=document.getElementById("more-btn");
-    moreBtn.style.display = games.length>20 ? "inline-block":"none";
-    document.getElementById("collapse-btn").style.display="none";
+    updateMoreBtns();
 
     const pm={};games.forEach(g=>{if(!pm[g.position])pm[g.position]={c:0,w:0,laneWin:0,laneOpp:0};pm[g.position].c++;if(g.win)pm[g.position].w++;if(g.oppWin!==null){pm[g.position].laneOpp++;if(g.oppWin)pm[g.position].laneWin++;}});
     let ph="";for(const[p,st]of Object.entries(pm)){
@@ -556,9 +577,15 @@ function renderData(games,account,rank){
         <div class="stat-item"><div class="stat-value">${avgRank}</div><div class="stat-label">평균 전체순위</div></div>`;
 }
 
+function getFiltered(){
+    if(currentFilter==="all")return renderedGames;
+    const q=FILTERS[currentFilter];
+    return renderedGames.filter(g=>q.includes(g.queue));
+}
+
 function renderGameRows(){
     const gradeColor={"S":"#e63946","A":"#ff8c42","B":"#ffd166","C":"#8ab4f8","D":"#6a9fd8"};
-    const games=renderedGames.slice(0,showCount);
+    const games=getFiltered().slice(0,showCount);
     let tb="";
     games.forEach((g,i)=>{
         tb+=`<tr class="game-row-${i}">
@@ -580,18 +607,30 @@ function renderGameRows(){
     document.getElementById("game-tbody").innerHTML=tb;
 }
 
-function showMoreGames(){
-    showCount=renderedGames.length;
+function updateMoreBtns(){
+    const len=getFiltered().length;
+    document.getElementById("more-btn").style.display = (len>20 && showCount<len) ? "inline-block":"none";
+    document.getElementById("collapse-btn").style.display = showCount>20 ? "inline-block":"none";
+}
+
+function setFilter(q){
+    currentFilter=q;
+    document.querySelectorAll("#filter-bar .chip").forEach(c=>c.classList.toggle("active",c.dataset.q===q));
+    showCount=20;
     renderGameRows();
-    document.getElementById("more-btn").style.display="none";
-    document.getElementById("collapse-btn").style.display="inline-block";
+    updateMoreBtns();
+}
+
+function showMoreGames(){
+    showCount=getFiltered().length;
+    renderGameRows();
+    updateMoreBtns();
 }
 
 function collapseMoreGames(){
     showCount=20;
     renderGameRows();
-    document.getElementById("more-btn").style.display="inline-block";
-    document.getElementById("collapse-btn").style.display="none";
+    updateMoreBtns();
 }
 
 function toggleRow(i){
@@ -608,7 +647,7 @@ function toggleRow(i){
 }
 
 function renderDetail(i){
-    const g=renderedGames[i];
+    const g=getFiltered()[i];
     const el=document.getElementById("detailcontent-"+i);
     if(!el||el.childElementCount>0)return;
     const maxGold=Math.max(...g.myTeamGold.map(x=>x.gold),1);
@@ -624,6 +663,15 @@ function renderDetail(i){
         </div>`;
     }).join('');
     el.innerHTML=`<div style="text-align:left;padding:8px">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+            <div class="stat-pill">CS <b>${g.cs}</b></div>
+            <div class="stat-pill">시야 <b>${g.visionScore}</b></div>
+            <div class="stat-pill">골드 <b>${g.gold}k</b></div>
+            <div class="stat-pill">드래곤 <b>${g.obj.dragon}</b></div>
+            <div class="stat-pill">바론 <b>${g.obj.baron}</b></div>
+            <div class="stat-pill">타워 <b>${g.obj.tower}</b></div>
+            <div class="stat-pill">딜 <b>${g.dmg}k</b></div>
+        </div>
         <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px">
             <div style="background:rgba(30,70,140,0.35);padding:8px 14px;border-radius:8px">
                 <span style="color:#8ab4f8;font-size:.82em;margin-right:6px">상대 라이너</span>
