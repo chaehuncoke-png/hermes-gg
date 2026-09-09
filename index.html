@@ -143,7 +143,7 @@
 
             /* 매치 테이블: 가로로 넘치지 않게 스크롤 가능(와이드)하게 + 첫 열 고정 */
             .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-            .game-table{min-width:1330px;font-size:.78em}
+            .game-table{min-width:1450px;font-size:.78em}
             .game-table th,.game-table td{white-space:nowrap}
 
             .api-key-row{flex-direction:column}
@@ -197,7 +197,7 @@
 
     <div id="result-area">
         <div class="card"><h2>랭크 정보</h2><div class="rank-section" id="rank-section"></div></div>
-        <div class="card"><h2>최근 20경기 요약</h2><div class="stats-grid" id="summary-stats"></div></div>
+        <div class="card"><h2>최근 30경기 요약</h2><div class="stats-grid" id="summary-stats"></div></div>
         <div class="card game-detail-card">
             <h2>최근 경기 상세 <button id="refresh-btn" onclick="fetchAllData()" style="float:right;padding:6px 14px;border:none;border-radius:8px;background:linear-gradient(135deg,#1a6dd4,#2196f3);color:#fff;cursor:pointer;font-weight:700;font-size:.8em">새로고침</button></h2>
             <p class="note">▶ 클릭하면 팀원 골드 그래프 + 상대 라이너 상세 확인 / 승리=초록, 패배=빨강, 다시하기=회색</p>
@@ -210,7 +210,7 @@
             </div>
             <div class="table-wrap">
             <table class="game-table">
-                <thead><tr><th>▶</th><th>#</th><th>시간</th><th>모드</th><th>결과</th><th>등급</th><th>챔피언</th><th>라인</th><th>KDA</th><th>딜(k)</th><th>상대 라이너</th><th>전체순위</th><th>팀운</th></tr></thead>
+                <thead><tr><th>▶</th><th>#</th><th>시간</th><th>모드</th><th>결과</th><th>등급</th><th>챔피언</th><th>라인</th><th>KDA</th><th>딜(k)</th><th>킬관여</th><th>상대 라이너</th><th>전체순위</th><th>팀운</th></tr></thead>
                 <tbody id="game-tbody"></tbody>
             </table>
             </div>
@@ -221,10 +221,14 @@
             <h2>모스트 5 챔피언</h2>
             <div class="table-wrap">
             <table class="game-table">
-                <thead><tr><th>챔피언</th><th>경기수</th><th>승률</th><th>평균 KDA</th><th>평균 딜(k)</th><th>MVP</th><th>주 라인</th></tr></thead>
+                <thead><tr><th>챔피언</th><th>경기수</th><th>승률</th><th>평균 KDA</th><th>평균 딜(k)</th><th>평균 킬관여</th><th>MVP</th><th>주 라인</th></tr></thead>
                 <tbody id="champion-tbody"></tbody>
             </table>
             </div>
+        </div>
+        <div class="card">
+            <h2>플레이 성향</h2>
+            <div class="stats-grid" id="style-stats"></div>
         </div>
         <div class="card">
             <h2>팀운 분석</h2>
@@ -454,6 +458,13 @@ async function fetchAllData(){
             };
             const oKda=opponent.kda, myKda=p.deaths>0?(p.kills+p.assists)/p.deaths:(p.kills+p.assists)>0?99:1;
 
+            // 플레이 성향(DeepLOL/LOL.PS): 팀 내 딜 비중, 킬 관여율, 멀티킬
+            const teamKills = fullTeam.reduce((s,x)=>s+(x.kills||0),0)||1;
+            const kp = Math.round((p.kills+p.assists)/teamKills*1000)/10;      // 킬 관여율 %
+            const teamDmg = fullTeam.reduce((s,x)=>s+(x.totalDamageDealtToChampions||0),0)||1;
+            const dmgShare = Math.round((p.totalDamageDealtToChampions||0)/teamDmg*1000)/10; // 딜 비중 %
+            const multiKill = (p.largestMultiKill||0)>2 ? p.largestMultiKill : 0; // 3=트리플 이상만
+
             // 게임별 등급(S~D): KDA+팀운+딜+전체순위 종합
             let grade="D";
             const gradeScore = (luckPct*0.35) + (Math.min(myKda/5,2)/2*100*0.35) + ((10- (p.deaths>12?0:teamRank(m.info.participants,puuid)))/9*100*0.2) + (Math.min(myDmg/40000,1)*100*0.1);
@@ -496,6 +507,7 @@ async function fetchAllData(){
                 oppWin:oKda>myKda?false:(oKda===myKda?null:true),
                 opponent,
                 myTeamGold,
+                kp, dmgShare, multiKill,
                 gameTimeMs:(m.info.gameCreation||m.info.gameStartTimestamp||0)
             });
             await new Promise(r=>setTimeout(r,80));
@@ -544,6 +556,26 @@ function renderData(games,account,rank){
         <div class="stat-item"><div class="stat-value">${mvpCount}</div><div class="stat-label">MVP 획득</div></div>
         <div class="stat-item"><div class="stat-value" style="font-size:1.3em;padding:8px;border-radius:8px">${bestGrade}</div><div class="stat-label">최다 등급 (S${gradeCounts.S}/A${gradeCounts.A}/B${gradeCounts.B}/C${gradeCounts.C}/D${gradeCounts.D})</div></div>`;
 
+    // ===== 플레이 성향 (DeepLOL/LOL.PS) =====
+    const realForStyle=realGames.length?realGames:games;
+    const n=realForStyle.length||1;
+    const avgKP=n?Math.round(realForStyle.reduce((s,g)=>s+g.kp,0)/n):0;
+    const avgShare=Math.round(realForStyle.reduce((s,g)=>s+g.dmgShare,0)/n);
+    const multikills=realForStyle.filter(g=>g.multiKill>0).length;
+    const triples=realForStyle.filter(g=>g.multiKill===3).length;
+    const quadras=realForStyle.filter(g=>g.multiKill===4).length;
+    const pentas=realForStyle.filter(g=>g.multiKill===5).length;
+    const avgCS=n?Math.round(realForStyle.reduce((s,g)=>s+g.cs,0)/n):0;
+    const avgGold=n?Math.round(realForStyle.reduce((s,g)=>s+g.gold,0)/n*10)/10:0;
+    const kpLabel = avgKP>=45?"참여형(캐리)":avgKP>=30?"균형형":"개인플레이형";
+    document.getElementById("style-stats").innerHTML=`
+        <div class="stat-item"><div class="stat-value" style="color:${avgKP>=45?'#4ade80':avgKP>=30?'#fbbf24':'#8ab4f8'}">${avgKP}%</div><div class="stat-label">평균 킬관여율 (${kpLabel})</div></div>
+        <div class="stat-item"><div class="stat-value">${avgShare}%</div><div class="stat-label">팀 내 딜 비중</div></div>
+        <div class="stat-item"><div class="stat-value" style="color:#ffd700">${multikills}회</div><div class="stat-label">멀티킬 경기 (3·4·5킬)</div></div>
+        <div class="stat-item"><div class="stat-value">${triples}·${quadras}·${pentas}</div><div class="stat-label">트리플·쿼드라·펜타</div></div>
+        <div class="stat-item"><div class="stat-value">${avgCS}</div><div class="stat-label">경기당 평균 CS</div></div>
+        <div class="stat-item"><div class="stat-value">${avgGold}k</div><div class="stat-label">경기당 평균 골드</div></div>`;
+
     let sr={tier:"Unranked",leaguePoints:0,wins:0,losses:0},fr={tier:"Unranked",leaguePoints:0,wins:0,losses:0};
     if(rank&&Array.isArray(rank.ranked))rank.ranked.forEach(r=>{if(r.queueType==="RANKED_SOLO_5x5")sr=r;else if(r.queueType==="RANKED_FLEX_SR")fr=r});
     const sw=sr.wins+sr.losses>0?Math.round(sr.wins/(sr.wins+sr.losses)*1000)/10:0;
@@ -572,11 +604,12 @@ function renderData(games,account,rank){
     }
     document.getElementById("position-stats").innerHTML=ph;
 
-    const cm={};games.forEach(g=>{if(!cm[g.champion])cm[g.champion]={c:0,w:0,kd:0,pos:g.position,dmg:0,mvp:0};cm[g.champion].c++;if(g.win)cm[g.champion].w++;cm[g.champion].kd+=g.kdaNum;cm[g.champion].dmg+=g.dmg;if(g.isMVP)cm[g.champion].mvp++});
+    const cm={};games.forEach(g=>{if(!cm[g.champion])cm[g.champion]={c:0,w:0,kd:0,pos:g.position,dmg:0,mvp:0,kp:0};cm[g.champion].c++;if(g.win)cm[g.champion].w++;cm[g.champion].kd+=g.kdaNum;cm[g.champion].dmg+=g.dmg;cm[g.champion].kp+=g.kp;if(g.isMVP)cm[g.champion].mvp++});
     let ch="";for(const[c,st]of Object.entries(cm).sort((a,b)=>b[1].c-a[1].c).slice(0,5)){
         const ak=(st.kd/st.c).toFixed(2);const kc=ak>=3?"good-kda":ak>=2?"normal-kda":"bad-kda";
         const ad=st.c?Math.round(st.dmg/st.c):0;
-        ch+=`<tr><td class="champion-name">${c}</td><td>${st.c}</td><td>${Math.round(st.w/st.c*1000)/10}%</td><td class="${kc}">${ak}</td><td>${ad}k</td><td style="color:#ffd700;font-weight:700">${st.mvp>0?st.mvp:'-'}</td><td><span class="position-badge ${POS_CSS[st.pos]||"position-jungle"}">${st.pos}</span></td></tr>`;
+        const akp=st.c?Math.round(st.kp/st.c):0;
+        ch+=`<tr><td class="champion-name">${c}</td><td>${st.c}</td><td>${Math.round(st.w/st.c*1000)/10}%</td><td class="${kc}">${ak}</td><td>${ad}k</td><td style="color:${akp>=45?'#4ade80':akp>=30?'#fbbf24':'#8ab4f8'};font-weight:700">${akp}%</td><td style="color:#ffd700;font-weight:700">${st.mvp>0?st.mvp:'-'}</td><td><span class="position-badge ${POS_CSS[st.pos]||"position-jungle"}">${st.pos}</span></td></tr>`;
     }
     document.getElementById("champion-tbody").innerHTML=ch;
 
@@ -603,14 +636,15 @@ function renderGameRows(){
         <td>${i+1}</td><td style="color:#6a9fd8;white-space:nowrap">${g.gameTime}</td><td>${g.mode}</td>
         <td class="result-cell ${g.remake?'bg-remake':(g.win?'bg-win':'bg-loss')}">${g.remake?'다시하기':(g.win?'승리':'패배')}${(!g.remake&&g.isMVP)?' <b style="color:#ffd700">MVP</b>':''}</td>
         <td><span style="display:inline-block;min-width:28px;padding:2px 8px;border-radius:6px;background:${gradeColor[g.grade]||'#6a9fd8'};color:#fff;font-weight:800">${g.grade}</span></td>
-        <td class="champion-name" style="white-space:nowrap">${g.champion}</td>
+        <td class="champion-name" style="white-space:nowrap">${g.champion}${g.multiKill?' <span style="color:#ffd700;font-size:.75em;background:rgba(255,215,0,0.15);border-radius:5px;padding:1px 5px">${g.multiKill}멀티</span>':''}</td>
         <td><span class="position-badge ${POS_CSS[g.position]||"position-jungle"}">${g.position}</span></td>
         <td class="${kdaClass(g.kills,g.deaths,g.assists)}" style="white-space:nowrap">${g.kills}/${g.deaths}/${g.assists} <span style="color:#7a8aa8">(${g.kdaStr})</span></td>
         <td class="${g.dmg>=20?'good-kda':g.dmg>=12?'normal-kda':'bad-kda'}">${g.dmg}k</td>
+        <td style="color:${g.kp>=45?'#4ade80':g.kp>=30?'#fbbf24':'#7a8aa8'};font-weight:700">${g.kp}%</td>
         <td style="font-size:.85em">${g.opponent.champion}<br><span class="${g.oppWin===false?'bad-kda':(g.oppWin===true?'good-kda':'normal-kda')}">${g.opponent.kdaStr} [${g.oppWin===false?'패':(g.oppWin===true?'승':'무')}]</span></td>
         <td class="team-rank-${g.teamRank}">${g.teamRank}/10</td>
         <td><span class="${g.teamLuck>=50?"luck-good":"luck-bad"}" style="font-weight:700">${g.teamLuck}%</span></td></tr>
-        <tr style="display:none" id="detail-${i}"><td colspan="13" style="background:rgba(5,15,40,0.7)">
+        <tr style="display:none" id="detail-${i}"><td colspan="14" style="background:rgba(5,15,40,0.7)">
             <div id="detailcontent-${i}"></div>
         </td></tr>`;
     });
@@ -681,6 +715,9 @@ function renderDetail(i){
             <div class="stat-pill">바론 <b>${g.obj.baron}</b></div>
             <div class="stat-pill">타워 <b>${g.obj.tower}</b></div>
             <div class="stat-pill">딜 <b>${g.dmg}k</b></div>
+            <div class="stat-pill" style="color:#4ade80">딜비중 <b>${g.dmgShare}%</b></div>
+            <div class="stat-pill">킬관여 <b style="color:${g.kp>=45?'#4ade80':g.kp>=30?'#fbbf24':'#cfe0f5'}">${g.kp}%</b></div>
+            ${g.multiKill?'<div class="stat-pill" style="color:#ffd700">멀티킬 <b>'+g.multiKill+'킬</b></div>':''}
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px">
             <div style="background:rgba(30,70,140,0.35);padding:8px 14px;border-radius:8px">
