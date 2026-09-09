@@ -92,10 +92,10 @@
         .row-loss{background:rgba(248,113,113,0.10)}
         .row-remake{background:rgba(148,163,184,0.10)}
         .victory{color:#4ade80;font-weight:700}.defeat{color:#f87171;font-weight:700}
-        .result-cell{font-weight:800;font-size:.95em;letter-spacing:.3px;border-radius:8px}
-        .bg-win{background:rgba(77,166,255,0.20);color:#4da6ff}
-        .bg-loss{background:rgba(248,113,113,0.20);color:#f87171}
-        .bg-remake{background:rgba(148,163,184,0.18);color:#9ca3af}
+        .result-win{color:#4da6ff;font-weight:800;font-size:.95em;letter-spacing:.3px}
+        .result-loss{color:#f87171;font-weight:800;font-size:.95em;letter-spacing:.3px}
+        .result-remake{color:#9ca3af;font-weight:800;font-size:.95em;letter-spacing:.3px}
+        .mvp-tag{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:8px;color:#000;font-weight:900;font-size:.72em;background:linear-gradient(135deg,#ffd700,#ffaa00);box-shadow:0 0 8px rgba(255,215,0,0.6);letter-spacing:1px;vertical-align:middle}
         .game-detail-card{background:linear-gradient(180deg,rgba(10,25,60,0.55),rgba(5,10,30,0.85));border:1px solid rgba(80,140,230,0.15)}
         .game-detail-card td{padding:13px 12px}
         .game-detail-card .game-table th{padding:12px 12px}
@@ -467,6 +467,7 @@ async function fetchAllData(){
             const opp = m.info.participants.find(x=>x.teamId!==p.teamId && x.teamPosition===p.teamPosition);
             const myDmg=p.totalDamageDealtToChampions||0, myTank=p.totalDamageTaken||0, myHeal=p.totalHeal||0;
             const opponent={
+                nickname:opp?((opp.riotIdGameName||opp.summonerName||"")+"#"+(opp.riotIdTagline||"")):"-",
                 champion:opp?champN(opp.championId):"-",
                 kdaStr:opp?kdaStr(opp.kills,opp.deaths,opp.assists):"-",
                 kills:opp?opp.kills:0,deaths:opp?opp.deaths:0,assists:opp?opp.assists:0,
@@ -665,9 +666,12 @@ function renderGameRows(){
     let tb="";
     games.forEach((g,i)=>{
         tb+=`<tr class="game-row-${i} ${g.remake?'row-remake':(g.win?'row-win':'row-loss')}">
-        <td style="cursor:pointer" onclick="toggleRow(${i})" title="클릭하여 상세보기"><span id="arrow-${i}" style="color:#4da6ff;font-weight:800;display:inline-block;transition:transform .2s">▶</span></td>
+        <td nowrap>
+            <span id="arrow-${i}" style="color:#4da6ff;font-weight:800;cursor:pointer;display:inline-block;transition:transform .2s;margin-right:6px" onclick="toggleRow(${i})" title="더보기(상대·골드)">▶</span>
+            <span style="cursor:pointer;color:#8ab4f8;font-weight:700;font-size:.78em;border:1px solid rgba(138,180,248,0.4);border-radius:6px;padding:3px 6px" onclick="toggleDetail(${i})" title="세부정보(골드·힐 등)">세부</span>
+        </td>
         <td>${i+1}</td><td style="color:#6a9fd8;white-space:nowrap">${g.gameTime}</td><td>${g.mode}</td>
-        <td class="result-cell ${g.remake?'bg-remake':(g.win?'bg-win':'bg-loss')}">${g.remake?'다시하기':(g.win?'승리':'패배')}${(!g.remake&&g.isMVP)?' <b style="color:#ffd700">MVP</b>':''}</td>
+        <td class="${g.remake?'result-remake':(g.win?'result-win':'result-loss')}">${g.remake?'다시하기':(g.win?'승리':'패배')}${(!g.remake&&g.isMVP)?' <span class="mvp-tag">MVP</span>':''}</td>
         <td><span style="display:inline-block;min-width:28px;padding:2px 8px;border-radius:6px;background:${gradeColor[g.grade]||'#6a9fd8'};color:#fff;font-weight:800">${g.grade}</span></td>
         <td class="champion-name" style="white-space:nowrap">${g.champion}${g.multiKill?' <span style="color:#ffd700;font-size:.75em;background:rgba(255,215,0,0.15);border-radius:5px;padding:1px 5px">${g.multiKill}멀티</span>':''}</td>
         <td><span class="position-badge ${POS_CSS[g.position]||"position-jungle"}">${g.position}</span></td>
@@ -679,6 +683,9 @@ function renderGameRows(){
         <td><span class="${g.teamLuck>=50?"luck-good":"luck-bad"}" style="font-weight:700">${g.teamLuck}%</span></td></tr>
         <tr style="display:none" id="detail-${i}"><td colspan="14" style="background:rgba(5,15,40,0.7)">
             <div id="detailcontent-${i}"></div>
+        </td></tr>
+        <tr style="display:none" id="detailstat-${i}"><td colspan="14" style="background:rgba(5,10,30,0.9)">
+            <div id="detailstat-content-${i}"></div>
         </td></tr>`;
     });
     document.getElementById("game-tbody").innerHTML=tb;
@@ -744,17 +751,45 @@ function renderDetail(i){
             <div style="width:150px;font-size:.82em;white-space:nowrap">${x.gold.toFixed(1)}k | KDA ${x.kda}</div>
         </div>`;
     }).join('');
+    const oppBadge = g.oppWin===false?'bad-kda':(g.oppWin===true?'good-kda':'normal-kda');
+    el.innerHTML=`<div style="text-align:left;padding:8px">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-bottom:12px">
+            <div style="background:rgba(30,70,140,0.35);padding:10px 16px;border-radius:10px;border-left:3px solid #ffd700">
+                <div style="color:#8ab4f8;font-size:.75em;margin-bottom:2px">상대 라이너 닉네임</div>
+                <span style="font-size:1.05em;color:#fff;font-weight:800">${g.opponent.nickname}</span>
+            </div>
+            <div style="background:rgba(30,70,140,0.35);padding:10px 16px;border-radius:10px">
+                <div style="color:#8ab4f8;font-size:.75em;margin-bottom:2px">상대 챔피언 · KDA</div>
+                <span style="font-weight:800;color:#fff">${g.opponent.champion}</span>
+                <span style="margin:0 8px;color:#6a9fd8">|</span>
+                <span class="${oppBadge}" style="font-weight:800">${g.opponent.kdaStr} [${g.oppWin===false?'패':(g.oppWin===true?'승':'무')}]</span>
+            </div>
+            <div style="background:rgba(30,70,140,0.35);padding:10px 16px;border-radius:10px">
+                <div style="color:#8ab4f8;font-size:.75em;margin-bottom:2px">나의 라인</div>
+                <span style="font-weight:800;color:#fff">${g.champion}</span>
+                <span style="margin:0 8px;color:#6a9fd8">|</span>
+                <span style="color:#6a9fd8">${g.position}</span>
+            </div>
+        </div>
+        <div style="color:#4da6ff;font-weight:700;margin-bottom:6px">팀원 골드 수급량 (금색 = 나)</div>
+        ${rows}
+    </div>`;
+}
+
+function renderDetailStat(i){
+    const g=getFiltered()[i];
+    const el=document.getElementById("detailstat-content-"+i);
+    if(!el||el.childElementCount>0)return;
     el.innerHTML=`<div style="text-align:left;padding:8px">
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-            <div class="stat-pill">CS <b>${g.cs}</b></div>
-            <div class="stat-pill">시야 <b>${g.visionScore}</b></div>
             <div class="stat-pill">골드 <b>${g.gold}k</b></div>
-            <div class="stat-pill">드래곤 <b>${g.obj.dragon}</b></div>
-            <div class="stat-pill">바론 <b>${g.obj.baron}</b></div>
-            <div class="stat-pill">타워 <b>${g.obj.tower}</b></div>
+            <div class="stat-pill" style="color:#4ade80">힐 <b>${g.heal}k</b></div>
+            <div class="stat-pill" style="color:#f87171">받은피해 <b>${g.tank}k</b></div>
             <div class="stat-pill">딜 <b>${g.dmg}k</b></div>
             <div class="stat-pill" style="color:#4ade80">딜비중 <b>${g.dmgShare}%</b></div>
             <div class="stat-pill">킬관여 <b style="color:${g.kp>=45?'#4ade80':g.kp>=30?'#fbbf24':'#cfe0f5'}">${g.kp}%</b></div>
+            <div class="stat-pill">CS <b>${g.cs}</b></div>
+            <div class="stat-pill">시야 <b>${g.visionScore}</b></div>
             ${g.multiKill?'<div class="stat-pill" style="color:#ffd700">멀티킬 <b>'+g.multiKill+'킬</b></div>':''}
         </div>
         <div class="dth-wrap">
@@ -770,23 +805,20 @@ function renderDetail(i){
                 <span><i style="background:#4ade80"></i> 힐 ${g.heal}k</span>
             </div>
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px">
-            <div style="background:rgba(30,70,140,0.35);padding:8px 14px;border-radius:8px">
-                <span style="color:#8ab4f8;font-size:.82em;margin-right:6px">상대 라이너</span>
-                <b style="color:#fff">${g.opponent.champion}</b>
-                <span style="margin:0 8px;color:#6a9fd8">|</span>
-                <span class="${g.oppWin===false?'bad-kda':(g.oppWin===true?'good-kda':'normal-kda')}" style="font-weight:700">${g.opponent.kdaStr} [${g.oppWin===false?'패':(g.oppWin===true?'승':'무')}]</span>
-            </div>
-            <div style="background:rgba(30,70,140,0.35);padding:8px 14px;border-radius:8px">
-                <span style="color:#8ab4f8;font-size:.82em;margin-right:6px">나의 라인</span>
-                <b style="color:#fff">${g.champion}</b>
-                <span style="margin:0 8px;color:#6a9fd8">|</span>
-                <span style="color:#6a9fd8">${g.position}</span>
-            </div>
+        <div style="margin-top:10px;color:#6a9fd8;font-size:.82em">
+            팀 오브젝트 — 드래곤 <b style="color:#fff">${g.obj.dragon}</b> · 바론 <b style="color:#fff">${g.obj.baron}</b> · 타워 <b style="color:#fff">${g.obj.tower}</b>
         </div>
-        <div style="color:#4da6ff;font-weight:700;margin-bottom:6px">팀원 골드 수급량 (금색 = 나)</div>
-        ${rows}
     </div>`;
+}
+
+function toggleDetail(i){
+    const d=document.getElementById("detailstat-"+i);
+    if(d.style.display==="none"){
+        renderDetailStat(i);
+        d.style.display="";
+    }else{
+        d.style.display="none";
+    }
 }
 
 window.addEventListener("DOMContentLoaded",()=>{checkKey();setupAutoSearch()});
