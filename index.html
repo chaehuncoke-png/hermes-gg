@@ -68,15 +68,34 @@
         .stat-label{font-size:.88em;color:#6a9fd8;margin-top:5px}
         .win-rate{color:#4ade80}.team-luck{color:#fbbf24}
 
+        .summary-visual{grid-column:1/-1;background:rgba(10,25,60,0.5);border:1px solid rgba(80,140,230,0.15);border-radius:12px;padding:16px}
+        .wr-label{font-weight:800;font-size:1.05em;margin-bottom:8px;color:#cfe0f5}
+        .wr-track{height:16px;background:rgba(30,70,140,0.35);border-radius:8px;overflow:hidden;margin-bottom:10px}
+        .wr-fill{height:100%;background:linear-gradient(90deg,#2d7dd2,#4da6ff);border-radius:8px;transition:width .6s}
+        .strip-label{font-size:.8em;color:#6a9fd8;margin-bottom:6px}
+        .win-strip{display:flex;gap:3px;flex-wrap:wrap}
+        .wstrip-win{width:16px;height:16px;border-radius:3px;background:#4da6ff}
+        .wstrip-loss{width:16px;height:16px;border-radius:3px;background:#f87171}
+        .wstrip-remake{width:16px;height:16px;border-radius:3px;background:#9ca3af}
+
+        .dth-wrap{margin:4px 0 12px;max-width:520px}
+        .dth-bar{display:flex;height:18px;border-radius:9px;overflow:hidden;background:rgba(30,70,140,0.3)}
+        .dth-seg{height:100%;transition:width .5s}
+        .dth-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:.82em;color:#cfe0f5}
+        .dth-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle}
+
         .game-table{width:100%;border-collapse:collapse;margin-top:15px;font-size:.82em}
         .game-table th{background:rgba(30,70,140,0.4);padding:10px 5px;text-align:center;font-weight:700;white-space:nowrap;color:#8ab4f8}
         .game-table td{padding:8px 5px;text-align:center;border-bottom:1px solid rgba(80,140,230,0.08)}
         .game-table tr:hover{background:rgba(30,70,140,0.15)}
+        .row-win{background:rgba(77,166,255,0.10)}
+        .row-loss{background:rgba(248,113,113,0.10)}
+        .row-remake{background:rgba(148,163,184,0.10)}
         .victory{color:#4ade80;font-weight:700}.defeat{color:#f87171;font-weight:700}
         .result-cell{font-weight:800;font-size:.95em;letter-spacing:.3px;border-radius:8px}
-        .bg-win{background:rgba(74,222,128,0.16);color:#4ade80}
-        .bg-loss{background:rgba(248,113,113,0.16);color:#f87171}
-        .bg-remake{background:rgba(148,163,184,0.16);color:#9ca3af}
+        .bg-win{background:rgba(77,166,255,0.20);color:#4da6ff}
+        .bg-loss{background:rgba(248,113,113,0.20);color:#f87171}
+        .bg-remake{background:rgba(148,163,184,0.18);color:#9ca3af}
         .game-detail-card{background:linear-gradient(180deg,rgba(10,25,60,0.55),rgba(5,10,30,0.85));border:1px solid rgba(80,140,230,0.15)}
         .game-detail-card td{padding:13px 12px}
         .game-detail-card .game-table th{padding:12px 12px}
@@ -546,15 +565,29 @@ function renderData(games,account,rank){
     const gradeCounts={S:games.filter(g=>g.grade==="S").length,A:games.filter(g=>g.grade==="A").length,B:games.filter(g=>g.grade==="B").length,C:games.filter(g=>g.grade==="C").length,D:games.filter(g=>g.grade==="D").length};
     const bestGrade = gradeCounts.S>0?"S":(gradeCounts.A>0?"A":(gradeCounts.B>0?"B":(gradeCounts.C>0?"C":"D")));
 
+    // 시각화: 승률 진행바 + 최근 경기 승패 스트립
+    const stripGames=games.slice(0,20);
+    const winStrip=stripGames.map(g=>{
+        if(g.remake)return '<span class="wstrip-remake" title="다시하기"></span>';
+        return g.win?'<span class="wstrip-win" title="승리"></span>':'<span class="wstrip-loss" title="패배"></span>';
+    }).join('');
+    const barWr=Math.max(0,Math.min(100,wr));
+
     document.getElementById("summary-stats").innerHTML=`
+        <div class="summary-visual">
+            <div class="wr-label">승률 ${wr}% (${wins}W ${total-wins}L)</div>
+            <div class="wr-track"><div class="wr-fill" style="width:${barWr}%"></div></div>
+            <div class="strip-label">최근 경기 (왼쪽이 최신)</div>
+            <div class="win-strip">${winStrip}</div>
+        </div>
         <div class="stat-item"><div class="stat-value">${avgKda}</div><div class="stat-label">평균 KDA</div></div>
-        <div class="stat-item"><div class="stat-value win-rate">${wr}%</div><div class="stat-label">승률 (${wins}W ${total-wins}L)</div></div>
+        <div class="stat-item"><div class="stat-value win-rate">${wr}%</div><div class="stat-label">승률</div></div>
         <div class="stat-item"><div class="stat-value" style="color:#a78bfa">${formWr}%</div><div class="stat-label">최근 10경기 폼 승률</div></div>
         <div class="stat-item"><div class="stat-value" style="color:#a78bfa">${formKda}</div><div class="stat-label">최근 10경기 폼 KDA</div></div>
         <div class="stat-item"><div class="stat-value team-luck">${luckScore}%</div><div class="stat-label">팀운 점수</div></div>
         <div class="stat-item"><div class="stat-value">${avgRank}</div><div class="stat-label">평균 전체순위</div></div>
         <div class="stat-item"><div class="stat-value">${mvpCount}</div><div class="stat-label">MVP 획득</div></div>
-        <div class="stat-item"><div class="stat-value" style="font-size:1.3em;padding:8px;border-radius:8px">${bestGrade}</div><div class="stat-label">최다 등급 (S${gradeCounts.S}/A${gradeCounts.A}/B${gradeCounts.B}/C${gradeCounts.C}/D${gradeCounts.D})</div></div>`;
+        <div class="stat-item"><div class="stat-value" style="font-size:1.3em;padding:8px;border-radius:8px">${bestGrade}</div><div class="stat-label">최다 등급</div></div>`;
 
     // ===== 플레이 성향 (DeepLOL/LOL.PS) =====
     const realForStyle=realGames.length?realGames:games;
@@ -631,7 +664,7 @@ function renderGameRows(){
     const games=getFiltered().slice(0,showCount);
     let tb="";
     games.forEach((g,i)=>{
-        tb+=`<tr class="game-row-${i}">
+        tb+=`<tr class="game-row-${i} ${g.remake?'row-remake':(g.win?'row-win':'row-loss')}">
         <td style="cursor:pointer" onclick="toggleRow(${i})" title="클릭하여 상세보기"><span id="arrow-${i}" style="color:#4da6ff;font-weight:800;display:inline-block;transition:transform .2s">▶</span></td>
         <td>${i+1}</td><td style="color:#6a9fd8;white-space:nowrap">${g.gameTime}</td><td>${g.mode}</td>
         <td class="result-cell ${g.remake?'bg-remake':(g.win?'bg-win':'bg-loss')}">${g.remake?'다시하기':(g.win?'승리':'패배')}${(!g.remake&&g.isMVP)?' <b style="color:#ffd700">MVP</b>':''}</td>
@@ -690,6 +723,11 @@ function toggleRow(i){
     }
 }
 
+function dthPct(d,t,h){
+    const s=(d||0)+(t||0)+(h||0)||1;
+    return [Math.round(d/s*100),Math.round(t/s*100),Math.round(h/s*100)];
+}
+
 function renderDetail(i){
     const g=getFiltered()[i];
     const el=document.getElementById("detailcontent-"+i);
@@ -718,6 +756,19 @@ function renderDetail(i){
             <div class="stat-pill" style="color:#4ade80">딜비중 <b>${g.dmgShare}%</b></div>
             <div class="stat-pill">킬관여 <b style="color:${g.kp>=45?'#4ade80':g.kp>=30?'#fbbf24':'#cfe0f5'}">${g.kp}%</b></div>
             ${g.multiKill?'<div class="stat-pill" style="color:#ffd700">멀티킬 <b>'+g.multiKill+'킬</b></div>':''}
+        </div>
+        <div class="dth-wrap">
+            <div style="color:#8ab4f8;font-size:.82em;margin-bottom:4px">딜 / 받은피해 / 힐 비중</div>
+            <div class="dth-bar">
+                <div class="dth-seg" style="width:${dthPct(g.dmg,g.tank,g.heal)[0]}%;background:#4da6ff" title="딜 ${g.dmg}k"></div>
+                <div class="dth-seg" style="width:${dthPct(g.dmg,g.tank,g.heal)[1]}%;background:#f87171" title="받은피해 ${g.tank}k"></div>
+                <div class="dth-seg" style="width:${dthPct(g.dmg,g.tank,g.heal)[2]}%;background:#4ade80" title="힐 ${g.heal}k"></div>
+            </div>
+            <div class="dth-legend">
+                <span><i style="background:#4da6ff"></i> 딜 ${g.dmg}k</span>
+                <span><i style="background:#f87171"></i> 받은피해 ${g.tank}k</span>
+                <span><i style="background:#4ade80"></i> 힐 ${g.heal}k</span>
+            </div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px">
             <div style="background:rgba(30,70,140,0.35);padding:8px 14px;border-radius:8px">
