@@ -548,7 +548,7 @@ async function fetchAllData(){
                 champion:champN(p.championId),champId:p.championId,position:posKO(p.teamPosition),
                 kills:p.kills,deaths:p.deaths,assists:p.assists,
                 kdaStr:kdaStr(p.kills,p.deaths,p.assists),
-                kdaNum:p.deaths>0?(p.kills+p.assists)/p.deaths:99,
+                kdaNum:p.deaths>0?Math.min((p.kills+p.assists)/p.deaths,10):10,
                 cs:(p.totalMinionsKilled||0)+(p.neutralMinionsKilled||0),
                 gold:Math.round((p.goldEarned||0)/1000*10)/10,
                 visionScore:p.visionScore||0,
