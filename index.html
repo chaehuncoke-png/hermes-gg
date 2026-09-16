@@ -46,6 +46,11 @@
         .status.error{color:#f87171}
         .status.success{color:#4ade80}
 
+        #recent-users{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center}
+        .recent-label{color:#6a9fd8;font-size:.78em;font-weight:700;margin-right:2px}
+        .recent-chip{cursor:pointer;background:rgba(20,55,120,0.35);color:#cfe0f5;border:1px solid rgba(80,140,230,0.3);border-radius:14px;padding:4px 12px;font-size:.8em;transition:all .15s}
+        .recent-chip:hover{background:#1a6dd4;color:#fff;border-color:#4da6ff}
+
         .api-settings{margin-top:12px;padding-top:12px;border-top:1px solid rgba(80,140,230,0.15)}
         .api-settings summary{cursor:pointer;color:#4a7aaa;font-size:.85em}
         .api-settings summary:hover{color:#4da6ff}
@@ -203,10 +208,11 @@
 
     <div class="search-box">
         <div class="search-row">
-            <input type="text" id="game-name-input" placeholder="닉네임 (예: Wutellme1)">
-            <input type="text" id="tag-line-input" placeholder="태그 (예: Why)" style="flex:0.5;min-width:110px;">
+            <input type="text" id="game-name-input" placeholder="닉네임 입력">
+            <input type="text" id="tag-line-input" placeholder="태그 입력" style="flex:0.5;min-width:110px;">
             <button id="fetch-btn" onclick="fetchAllData()">검색</button>
         </div>
+        <div id="recent-users"></div>
         <div class="status" id="api-status"></div>
     </div>
 
@@ -293,6 +299,35 @@ function setupAutoSearch(){
     const ni=document.getElementById("game-name-input"),ti=document.getElementById("tag-line-input");
     ni.addEventListener("keydown",e=>{if(e.key==="Enter")fetchAllData()});
     ti.addEventListener("keydown",e=>{if(e.key==="Enter")fetchAllData()});
+}
+
+/* ---------- 최근 검색 (기기 localStorage) ---------- */
+const RECENT_KEY="hermes_recent_users";
+function saveRecent(name,tag){
+    try{
+        const arr=JSON.parse(localStorage.getItem(RECENT_KEY)||"[]");
+        const entry=(name||"")+"#"+(tag||"");
+        const filtered=arr.filter(x=>(x.name+"#"+x.tag)!==entry);
+        filtered.unshift({name,tag});
+        localStorage.setItem(RECENT_KEY,JSON.stringify(filtered.slice(0,8)));
+    }catch(e){}
+    renderRecent();
+}
+function renderRecent(){
+    const el=document.getElementById("recent-users");
+    if(!el)return;
+    let arr=[];
+    try{arr=JSON.parse(localStorage.getItem(RECENT_KEY)||"[]")}catch(e){arr=[]}
+    if(!arr.length){el.innerHTML="";return}
+    el.innerHTML=`<span class="recent-label">최근 검색</span>`+arr.map(u=>
+        `<button type="button" class="recent-chip" onclick="searchFx('${escH(u.name)}','${escH(u.tag)}')">${escH(u.name)}#${escH(u.tag)}</button>`
+    ).join('');
+}
+function searchFx(name,tag){
+    const gn=document.getElementById("game-name-input"),ti=document.getElementById("tag-line-input");
+    gn.value=name||"";
+    ti.value=tag||"";
+    fetchAllData();
 }
 
 async function loadChampData(){
@@ -417,6 +452,7 @@ async function fetchAllData(){
     const gameName = toHalf(gn);
     const tagLine = toHalf(tl);
     if(!gameName||!tagLine){setStatus("닉네임과 태그를 입력하세요!","error");return}
+    saveRecent(gameName,tagLine);
 
     if(!hasApiKey){
         await checkKey();
@@ -454,11 +490,21 @@ async function fetchAllData(){
         if(mids.error)throw new Error(mids.error);
 
         const games=[];
+        const fetchMatch=async id=>{
+            for(let t=1;t<=4;t++){
+                try{
+                    const r=await fetch(`/api/match/${id}`);
+                    const m=await r.json();
+                    if((r.status===429||m.error)&&t<4){await new Promise(s=>setTimeout(s,1200*t));continue;}
+                    return m;
+                }catch(e){if(t<4){await new Promise(s=>setTimeout(s,1200*t));continue;}return null;}
+            }
+            return null;
+        };
         for(let i=0;i<mids.length;i++){
             setLoading(true,`매치 ${i+1}/${mids.length} 상세 정보...`);
-            const mRes=await fetch(`/api/match/${mids[i]}`);
-            const m=await mRes.json();
-            if(m.error)continue;
+            const m=await fetchMatch(mids[i]);
+            if(!m||m.error)continue;
             const pi=m.metadata.participants.indexOf(puuid);
             if(pi<0)continue;
             const p=m.info.participants[pi];
@@ -565,7 +611,7 @@ async function fetchAllData(){
                 kp, dmgShare, multiKill,
                 gameTimeMs:(m.info.gameCreation||m.info.gameStartTimestamp||0)
             });
-            await new Promise(r=>setTimeout(r,80));
+            await new Promise(r=>setTimeout(r,700));
         }
         renderData(games,ad,rd);
         setStatus(`${games.length}개 매치 불러옴!`,"success");
@@ -865,7 +911,7 @@ function toggleDetail(i){
     }
 }
 
-window.addEventListener("DOMContentLoaded",()=>{checkKey();setupAutoSearch()});
+window.addEventListener("DOMContentLoaded",()=>{checkKey();setupAutoSearch();renderRecent()});
 </script>
 </body>
 </html>
