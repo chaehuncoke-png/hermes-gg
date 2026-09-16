@@ -506,7 +506,7 @@ async function fetchAllData(){
                 return kda + (dmg/25000) + ((pp.goldEarned||0)/20000) + (cs/80) + ((pp.visionScore||0)/20) + ((pp.assists||0)/10);
             };
             const rankIn = group => {           // 내가 그 팀 안에서 몇 등인지 (1=최고)
-                const scores=group.map(x=>x.puuid===puuid?{id:puuid,s:scoreP(x)+999}:{id:x.puuid,s:scoreP(x)});
+                const scores=group.map(x=>({id:x.puuid,s:scoreP(x)}));
                 scores.sort((a,b)=>b.s-a.s);
                 return scores.findIndex(x=>x.id===puuid)+1;
             };
