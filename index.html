@@ -88,9 +88,9 @@
         .game-table th{background:rgba(30,70,140,0.4);padding:10px 5px;text-align:center;font-weight:700;white-space:nowrap;color:#8ab4f8}
         .game-table td{padding:8px 5px;text-align:center;border-bottom:1px solid rgba(80,140,230,0.08)}
         .game-table tr:hover{background:rgba(30,70,140,0.15)}
-        .row-win{background:rgba(77,166,255,0.10)}
-        .row-loss{background:rgba(248,113,113,0.10)}
-        .row-remake{background:rgba(148,163,184,0.10)}
+        .row-win{background:rgba(77,166,255,0.28)}
+        .row-loss{background:rgba(248,113,113,0.28)}
+        .row-remake{background:rgba(148,163,184,0.28)}
         .victory{color:#4ade80;font-weight:700}.defeat{color:#f87171;font-weight:700}
         .result-win{color:#4da6ff;font-weight:800;font-size:.95em;letter-spacing:.3px}
         .result-loss{color:#f87171;font-weight:800;font-size:.95em;letter-spacing:.3px}
@@ -163,7 +163,7 @@
 
             /* 매치 테이블: 가로로 넘치지 않게 스크롤 가능(와이드)하게 + 첫 열 고정 */
             .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-            .game-table{min-width:1450px;font-size:.78em}
+            .game-table{min-width:1250px;font-size:.78em}
             .game-table th,.game-table td{white-space:nowrap}
 
             .api-key-row{flex-direction:column}
@@ -230,7 +230,7 @@
             </div>
             <div class="table-wrap">
             <table class="game-table">
-                <thead><tr><th>▶</th><th>#</th><th>시간</th><th>모드</th><th>결과</th><th>등급</th><th>챔피언</th><th>라인</th><th>KDA</th><th>딜(k)</th><th>킬관여</th><th>상대 라이너</th><th>전체순위</th><th>팀운</th></tr></thead>
+                <thead><tr><th>▶</th><th>#</th><th>시간</th><th>모드</th><th>결과</th><th>챔피언</th><th>라인</th><th>KDA</th><th>딜(k)</th><th>킬관여</th><th>상대 라이너</th><th>전체순위</th></tr></thead>
                 <tbody id="game-tbody"></tbody>
             </table>
             </div>
@@ -673,7 +673,15 @@ function renderData(games,account,rank){
     renderGameRows(games);
     updateMoreBtns();
 
-    const pm={};games.forEach(g=>{if(!pm[g.position])pm[g.position]={c:0,w:0,laneWin:0,laneOpp:0};pm[g.position].c++;if(g.win)pm[g.position].w++;if(g.oppWin!==null){pm[g.position].laneOpp++;if(g.oppWin)pm[g.position].laneWin++;}});
+    const LANE_QUEUES=[420,430,400,440,490];          // 라인전이 존재하는 모드만
+    const isLaneGame=q=>LANE_QUEUES.includes(q);
+    const pm={};games.forEach(g=>{
+        if(!isLaneGame(g.queue))return;               // 칼바람(450)·우르프(900) 제외
+        if(!g.position||g.position==="알수없음")return;
+        if(!pm[g.position])pm[g.position]={c:0,w:0,laneWin:0,laneOpp:0};
+        pm[g.position].c++;if(g.win)pm[g.position].w++;
+        if(g.oppWin!==null&&g.opponent&&g.opponent.kdaStr){pm[g.position].laneOpp++;if(g.oppWin)pm[g.position].laneWin++;}
+    });
     let ph="";for(const[p,st]of Object.entries(pm)){
         const lw=st.laneOpp?Math.round(st.laneWin/st.laneOpp*1000)/10:0;
         ph+=`<div class="stat-item"><div class="stat-value" style="background:${POS_BG[p]||"#333"};padding:10px;border-radius:8px">${p}</div><div class="stat-label">${st.c}경기 | ${Math.round(st.w/st.c*1000)/10}% 승률</div><div class="stat-label" style="color:${lw>=50?'#4ade80':'#f87171'}">라인전 ${st.laneOpp}전 ${st.laneWin}승 (${lw}%)</div></div>`;
@@ -703,7 +711,6 @@ function getFiltered(){
 }
 
 function renderGameRows(){
-    const gradeColor={"S":"#e63946","A":"#ff8c42","B":"#ffd166","C":"#8ab4f8","D":"#6a9fd8"};
     const games=getFiltered().slice(0,showCount);
     let tb="";
     games.forEach((g,i)=>{
@@ -715,19 +722,17 @@ function renderGameRows(){
         </td>
         <td>${i+1}</td><td style="color:#6a9fd8;white-space:nowrap">${g.gameTime}</td><td>${g.mode}</td>
         <td class="${g.remake?'result-remake':(g.win?'result-win':'result-loss')}">${g.remake?'다시하기':(g.win?'승리':'패배')}${(!g.remake&&g.isMVP)?' <span class="mvp-tag">MVP</span>':''}${(!g.remake&&g.isACE)?' <span class="ace-tag">ACE</span>':''}</td>
-        <td><span style="display:inline-block;min-width:28px;padding:2px 8px;border-radius:6px;background:${gradeColor[g.grade]||'#6a9fd8'};color:#fff;font-weight:800">${g.grade}</span></td>
         <td class="champion-name" style="white-space:nowrap">${g.champion}${g.multiKill?' <span style="color:#ffd700;font-size:.75em;background:rgba(255,215,0,0.15);border-radius:5px;padding:1px 5px">${g.multiKill}멀티</span>':''}</td>
         <td><span class="position-badge ${POS_CSS[g.position]||"position-jungle"}">${g.position}</span></td>
         <td class="${kdaClass(g.kills,g.deaths,g.assists)}" style="white-space:nowrap">${g.kills}/${g.deaths}/${g.assists} <span style="color:#7a8aa8">(${g.kdaStr})</span></td>
         <td class="${g.dmg>=20?'good-kda':g.dmg>=12?'normal-kda':'bad-kda'}">${g.dmg}k</td>
         <td style="color:${g.kp>=45?'#4ade80':g.kp>=30?'#fbbf24':'#7a8aa8'};font-weight:700">${g.kp}%</td>
         <td style="font-size:.85em">${g.opponent.champion}<br><span class="${g.oppWin===false?'bad-kda':(g.oppWin===true?'good-kda':'normal-kda')}">${g.opponent.kdaStr} [${g.oppWin===false?'패':(g.oppWin===true?'승':'무')}]</span></td>
-        <td class="team-rank-${g.teamRank}">${g.teamRank}/10</td>
-        <td><span class="${g.teamLuck>=50?"luck-good":"luck-bad"}" style="font-weight:700">${g.teamLuck}%</span></td></tr>
-        <tr style="display:none" id="detail-${i}"><td colspan="14" style="background:rgba(5,15,40,0.7)">
+        <td class="team-rank-${g.teamRank}">${g.teamRank}/10</td></tr>
+        <tr style="display:none" id="detail-${i}"><td colspan="12" style="background:rgba(5,15,40,0.7)">
             <div id="detailcontent-${i}"></div>
         </td></tr>
-        <tr style="display:none" id="detailstat-${i}"><td colspan="14" style="background:rgba(5,10,30,0.9)">
+        <tr style="display:none" id="detailstat-${i}"><td colspan="12" style="background:rgba(5,10,30,0.9)">
             <div id="detailstat-content-${i}"></div>
         </td></tr>`;
     });
