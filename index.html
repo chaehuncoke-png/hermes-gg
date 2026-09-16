@@ -305,6 +305,7 @@ async function loadChampData(){
 }
 
 const champN=id=>championMap[id]||`챔피언 ${id}`;
+const cIcon=(id,sz)=>`<img src="https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-icons/${id}.png" style="width:${sz}px;height:${sz}px;border-radius:50%;object-fit:cover;vertical-align:middle;background:#0a1226;border:1px solid rgba(255,255,255,0.15)" alt="" loading="lazy" onerror="this.style.display='none'">`;
 
 const posKO=pos=>POS_KO[pos]||pos||"알수없음";
 const kdaStr=(k,d,a)=>d===0?"Perfect":((k+a)/d).toFixed(2);
@@ -470,7 +471,7 @@ async function fetchAllData(){
             const myDmg=p.totalDamageDealtToChampions||0, myTank=p.totalDamageTaken||0, myHeal=p.totalHeal||0;
             const opponent={
                 nickname:opp?((opp.riotIdGameName||opp.summonerName||"")+"#"+(opp.riotIdTagline||"")):"-",
-                champion:opp?champN(opp.championId):"-",
+                champion:opp?champN(opp.championId):"-",champId:opp?opp.championId:0,
                 kdaStr:opp?kdaStr(opp.kills,opp.deaths,opp.assists):"-",
                 kills:opp?opp.kills:0,deaths:opp?opp.deaths:0,assists:opp?opp.assists:0,
                 kda:opp?(opp.deaths>0?(opp.kills+opp.assists)/opp.deaths:(opp.kills+opp.assists)>0?99:1):0,
@@ -518,7 +519,7 @@ async function fetchAllData(){
                 return {
                     puuid:x.puuid,
                     nickname:(x.riotIdGameName||x.summonerName||"—")+(x.riotIdTagline?"#"+x.riotIdTagline:""),
-                    champion:champN(x.championId),
+                    champion:champN(x.championId),champId:x.championId,
                     position:posKO(x.teamPosition),
                     kills:x.kills||0,deaths:x.deaths||0,assists:x.assists||0,
                     kdaStr:kdaStr(x.kills,x.deaths,x.assists),
@@ -544,7 +545,7 @@ async function fetchAllData(){
                 remake:(m.info.gameEndReason==="remake"||(m.info.gameDuration||999)<300),
                 obj:(()=>{const t=(m.info.teams||[]).find(t=>t.teamId===p.teamId);return t?{dragon:t.objectives?.dragon?.kills||0,baron:t.objectives?.baron?.kills||0,tower:t.objectives?.tower?.kills||0}:{dragon:0,baron:0,tower:0}})(),
                 gameTime:(m.info.gameCreation||m.info.gameStartTimestamp)?new Date((m.info.gameCreation||m.info.gameStartTimestamp)+9*3600*1000).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}):"-",
-                champion:champN(p.championId),position:posKO(p.teamPosition),
+                champion:champN(p.championId),champId:p.championId,position:posKO(p.teamPosition),
                 kills:p.kills,deaths:p.deaths,assists:p.assists,
                 kdaStr:kdaStr(p.kills,p.deaths,p.assists),
                 kdaNum:p.deaths>0?(p.kills+p.assists)/p.deaths:99,
@@ -688,12 +689,12 @@ function renderData(games,account,rank){
     }
     document.getElementById("position-stats").innerHTML=ph;
 
-    const cm={};games.forEach(g=>{if(!cm[g.champion])cm[g.champion]={c:0,w:0,kd:0,pos:g.position,dmg:0,mvp:0,kp:0};cm[g.champion].c++;if(g.win)cm[g.champion].w++;cm[g.champion].kd+=g.kdaNum;cm[g.champion].dmg+=g.dmg;cm[g.champion].kp+=g.kp;if(g.isMVP)cm[g.champion].mvp++});
+    const cm={};games.forEach(g=>{if(!cm[g.champion])cm[g.champion]={c:0,w:0,kd:0,pos:g.position,dmg:0,mvp:0,kp:0,cid:g.champId};cm[g.champion].c++;if(g.win)cm[g.champion].w++;cm[g.champion].kd+=g.kdaNum;cm[g.champion].dmg+=g.dmg;cm[g.champion].kp+=g.kp;if(g.isMVP)cm[g.champion].mvp++});
     let ch="";for(const[c,st]of Object.entries(cm).sort((a,b)=>b[1].c-a[1].c).slice(0,5)){
         const ak=(st.kd/st.c).toFixed(2);const kc=ak>=3?"good-kda":ak>=2?"normal-kda":"bad-kda";
         const ad=st.c?Math.round(st.dmg/st.c):0;
         const akp=st.c?Math.round(st.kp/st.c):0;
-        ch+=`<tr><td class="champion-name">${c}</td><td>${st.c}</td><td>${Math.round(st.w/st.c*1000)/10}%</td><td class="${kc}">${ak}</td><td>${ad}k</td><td style="color:${akp>=45?'#4ade80':akp>=30?'#fbbf24':'#8ab4f8'};font-weight:700">${akp}%</td><td style="color:#ffd700;font-weight:700">${st.mvp>0?st.mvp:'-'}</td><td><span class="position-badge ${POS_CSS[st.pos]||"position-jungle"}">${st.pos}</span></td></tr>`;
+        ch+=`<tr><td class="champion-name" style="white-space:nowrap">${cIcon(st.cid,26)} <span style="vertical-align:middle">${c}</span></td><td>${st.c}</td><td>${Math.round(st.w/st.c*1000)/10}%</td><td class="${kc}">${ak}</td><td>${ad}k</td><td style="color:${akp>=45?'#4ade80':akp>=30?'#fbbf24':'#8ab4f8'};font-weight:700">${akp}%</td><td style="color:#ffd700;font-weight:700">${st.mvp>0?st.mvp:'-'}</td><td><span class="position-badge ${POS_CSS[st.pos]||"position-jungle"}">${st.pos}</span></td></tr>`;
     }
     document.getElementById("champion-tbody").innerHTML=ch;
 
@@ -722,12 +723,12 @@ function renderGameRows(){
         </td>
         <td>${i+1}</td><td style="color:#6a9fd8;white-space:nowrap">${g.gameTime}</td><td>${g.mode}</td>
         <td class="${g.remake?'result-remake':(g.win?'result-win':'result-loss')}">${g.remake?'다시하기':(g.win?'승리':'패배')}${(!g.remake&&g.isMVP)?' <span class="mvp-tag">MVP</span>':''}${(!g.remake&&g.isACE)?' <span class="ace-tag">ACE</span>':''}</td>
-        <td class="champion-name" style="white-space:nowrap">${g.champion}${g.multiKill?' <span style="color:#ffd700;font-size:.75em;background:rgba(255,215,0,0.15);border-radius:5px;padding:1px 5px">${g.multiKill}멀티</span>':''}</td>
+        <td class="champion-name" style="white-space:nowrap">${cIcon(g.champId,30)} <span style="vertical-align:middle">${g.champion}</span>${g.multiKill?' <span style="color:#ffd700;font-size:.75em;background:rgba(255,215,0,0.15);border-radius:5px;padding:1px 5px;vertical-align:middle">${g.multiKill}멀티</span>':''}</td>
         <td><span class="position-badge ${POS_CSS[g.position]||"position-jungle"}">${g.position}</span></td>
         <td class="${kdaClass(g.kills,g.deaths,g.assists)}" style="white-space:nowrap">${g.kills}/${g.deaths}/${g.assists} <span style="color:#7a8aa8">(${g.kdaStr})</span></td>
         <td class="${g.dmg>=20?'good-kda':g.dmg>=12?'normal-kda':'bad-kda'}">${g.dmg}k</td>
         <td style="color:${g.kp>=45?'#4ade80':g.kp>=30?'#fbbf24':'#7a8aa8'};font-weight:700">${g.kp}%</td>
-        <td style="font-size:.85em">${g.opponent.champion}<br><span class="${g.oppWin===false?'bad-kda':(g.oppWin===true?'good-kda':'normal-kda')}">${g.opponent.kdaStr} [${g.oppWin===false?'패':(g.oppWin===true?'승':'무')}]</span></td>
+        <td style="font-size:.85em">${cIcon(g.opponent.champId,20)} <span style="vertical-align:middle">${g.opponent.champion}</span><br><span class="${g.oppWin===false?'bad-kda':(g.oppWin===true?'good-kda':'normal-kda')}">${g.opponent.kdaStr} [${g.oppWin===false?'패':(g.oppWin===true?'승':'무')}]</span></td>
         <td class="team-rank-${g.teamRank}">${g.teamRank}/10</td></tr>
         <tr style="display:none" id="detail-${i}"><td colspan="12" style="background:rgba(5,15,40,0.7)">
             <div id="detailcontent-${i}"></div>
@@ -794,7 +795,7 @@ function rosterRows(list){
             <span style="width:20px;color:${x.isMe?'#ffd700':'#6a9fd8'};font-weight:800">${x.isMe?'★':''}</span>
             <span style="color:#ffd700;font-weight:800;cursor:pointer;font-size:.82em" onclick="searchSummoner('${nm.split('#')[0]}','${nm.split('#')[1]||''}')" title="이 사람 전적 보기">${nm}</span>
             <span style="font-size:.82em;color:#cfe0f5">${x.position}</span>
-            <span style="font-size:.82em;color:#8ab4f8">${x.champion}</span>
+            <span style="font-size:.82em;color:#8ab4f8">${cIcon(x.champId,22)} <span style="vertical-align:middle">${x.champion}</span></span>
             <span class="${kdaClass(x.kills,x.deaths,x.assists)}" style="font-size:.85em;font-weight:700">${x.kdaStr}</span>
         </div>`;
     }).join('');
