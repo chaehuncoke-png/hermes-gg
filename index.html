@@ -590,7 +590,7 @@ async function fetchAllData(){
                 mode:QUEUE_MAP[m.info.queueId]||"알수없음",queue:m.info.queueId,win:p.win,
                 remake:(m.info.gameEndReason==="remake"||(m.info.gameDuration||999)<300),
                 obj:(()=>{const t=(m.info.teams||[]).find(t=>t.teamId===p.teamId);return t?{dragon:t.objectives?.dragon?.kills||0,baron:t.objectives?.baron?.kills||0,tower:t.objectives?.tower?.kills||0}:{dragon:0,baron:0,tower:0}})(),
-                gameTime:(m.info.gameCreation||m.info.gameStartTimestamp)?new Date((m.info.gameCreation||m.info.gameStartTimestamp)+9*3600*1000).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}):"-",
+                gameTime:(m.info.gameCreation||m.info.gameStartTimestamp)?new Date(m.info.gameCreation||m.info.gameStartTimestamp).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23",timeZone:"Asia/Seoul"}):"-",
                 champion:champN(p.championId),champId:p.championId,position:posKO(p.teamPosition),
                 kills:p.kills,deaths:p.deaths,assists:p.assists,
                 kdaStr:kdaStr(p.kills,p.deaths,p.assists),
@@ -777,7 +777,7 @@ function renderGameRows(){
         </td>
         <td>${i+1}</td><td style="color:#6a9fd8;white-space:nowrap">${g.gameTime}</td><td>${g.mode}</td>
         <td class="${g.remake?'result-remake':(g.win?'result-win':'result-loss')}">${g.remake?'다시하기':(g.win?'승리':'패배')}${(!g.remake&&g.isMVP)?' <span class="mvp-tag">MVP</span>':''}${(!g.remake&&g.isACE)?' <span class="ace-tag">ACE</span>':''}</td>
-        <td class="champion-name" style="white-space:nowrap">${cIcon(g.champId,30)} <span style="vertical-align:middle">${g.champion}</span>${g.multiKill?' <span style="color:#ffd700;font-size:.75em;background:rgba(255,215,0,0.15);border-radius:5px;padding:1px 5px;vertical-align:middle">${g.multiKill}멀티</span>':''}</td>
+        <td class="champion-name" style="white-space:nowrap">${cIcon(g.champId,30)} <span style="vertical-align:middle">${g.champion}</span>${g.multiKill?` <span style="color:#ffd700;font-size:.75em;background:rgba(255,215,0,0.15);border-radius:5px;padding:1px 5px;vertical-align:middle">${g.multiKill}멀티</span>`:''}</td>
         <td><span class="position-badge ${POS_CSS[g.position]||"position-jungle"}">${g.position}</span></td>
         <td class="${kdaClass(g.kills,g.deaths,g.assists)}" style="white-space:nowrap">${g.kills}/${g.deaths}/${g.assists} <span style="color:#7a8aa8">(${g.kdaStr})</span></td>
         <td class="${g.dmg>=20?'good-kda':g.dmg>=12?'normal-kda':'bad-kda'}">${g.dmg}k</td>
