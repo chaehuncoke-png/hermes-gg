@@ -157,14 +157,23 @@ def api_ranked(puuid):
     k = get_key()
     if not k:
         return jsonify({"error": "API 키 없음"})
+    entries = None
+    # 방법 1: 소환사 조회 후 league/v4 (표준)
     d1, c1 = riot_get(f"https://kr.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}", k)
-    if c1 != 200:
-        return jsonify({"error": f"소환사 정보 오류 ({c1})", "detail": d1})
-    sid = d1.get("id") if "id" in d1 else f"KR1_{puuid}"
-    d2, c2 = riot_get(f"https://kr.api.riotgames.com/lol/league/v4/entries/by-summoner/{sid}", k)
-    if c2 != 200:
-        return jsonify({"error": f"랭크 정보 오류 ({c2})", "detail": d2})
-    return jsonify({"summoner": d1, "ranked": d2})
+    if c1 == 200:
+        sid = d1.get("id", "")
+        if sid:
+            d2, c2 = riot_get(f"https://kr.api.riotgames.com/lol/league/v4/entries/by-summoner/{sid}", k)
+            if c2 == 200:
+                entries = d2
+    # 방법 2: league-exp/v4 (by-puuid, 실험용) 로 재시도
+    if not entries:
+        d3, c3 = riot_get(f"https://kr.api.riotgames.com/lol/league-exp/v4/entries/by-puuid/{puuid}", k)
+        if c3 == 200:
+            entries = d3
+    if not entries:
+        return jsonify({"error": "랭크 정보 오류 (403)", "detail": {"status": {"message": "Forbidden - Riot API 키가 한국(KR) 랭크 데이터 접근을 허용하지 않습니다. developer.riotgames.com에서 프로덕션 키 승인 상태를 확인해 주세요."}}})
+    return jsonify({"ranked": entries})
 
 @app.route("/api/matches/<puuid>")
 @limit_api
