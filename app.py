@@ -163,7 +163,7 @@ def api_ranked(puuid):
     sid = d1.get("id") if "id" in d1 else f"KR1_{puuid}"
     d2, c2 = riot_get(f"https://kr.api.riotgames.com/lol/league/v4/entries/by-summoner/{sid}", k)
     if c2 != 200:
-        return jsonify({"error": f"랭크 정보 오류 ({c2})"})
+        return jsonify({"error": f"랭크 정보 오류 ({c2})", "detail": d2})
     return jsonify({"summoner": d1, "ranked": d2})
 
 @app.route("/api/matches/<puuid>")

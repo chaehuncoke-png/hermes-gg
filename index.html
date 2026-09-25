@@ -63,6 +63,7 @@
         .api-key-help a{color:#4da6ff}
 
         .rank-section{display:flex;justify-content:space-around;flex-wrap:wrap;gap:20px}
+        .rank-error{background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.35);padding:18px;border-radius:12px;text-align:center;line-height:1.6}
         .rank-box{text-align:center;padding:22px;background:rgba(5,15,40,0.6);border-radius:12px;min-width:200px;border:1px solid rgba(80,140,230,0.1)}
         .rank-tier{font-size:2em;font-weight:bold;margin-bottom:8px}
         .rank-label{font-size:.9em;color:#6a9fd8;margin-bottom:5px}
@@ -477,8 +478,7 @@ async function fetchAllData(){
             setLoading(true,"랭크 정보 가져오는 중...");
             const rr=await fetch(`/api/ranked/${puuid}`);
             rd=await rr.json();
-            if(rd.error){rd=null}
-        }catch(e){rd=null}
+        }catch(e){rd={error:"랭크 정보를 불러오지 못했습니다."}}
 
         setLoading(true,"매치 목록 가져오는 중...");
         const [mrSolo, mrFlex] = await Promise.all([
@@ -699,6 +699,13 @@ function renderData(games,account,rank){
         <div class="stat-item"><div class="stat-value">${avgCS}</div><div class="stat-label">경기당 평균 CS</div></div>
         <div class="stat-item"><div class="stat-value">${avgGold}k</div><div class="stat-label">경기당 평균 골드</div></div>`;
 
+    if(rank&&rank.error){
+        const rdet=(rank.detail&&typeof rank.detail==="object"&&rank.detail.status)?rank.detail.status.message:"";
+        document.getElementById("rank-section").innerHTML=
+            `<div class="rank-error">랭크 정보를 불러오지 못했어요 😢<br>
+            <small style="color:#6b7280">${escH(rank.error||"")}${rdet?" — "+escH(rdet):""}</small><br>
+            <small style="color:#6b7280">Riot API 키가 아직 한국(KR) 랭크 정보 접근을 승인받지 못했을 수 있어요.<br>키가 승인되면 자동으로 표시됩니다.</small></div>`;
+    }else{
     let sr={tier:"Unranked",leaguePoints:0,wins:0,losses:0},fr={tier:"Unranked",leaguePoints:0,wins:0,losses:0};
     if(rank&&Array.isArray(rank.ranked))rank.ranked.forEach(r=>{if(r.queueType==="RANKED_SOLO_5x5")sr=r;else if(r.queueType==="RANKED_FLEX_SR")fr=r});
     const sw=sr.wins+sr.losses>0?Math.round(sr.wins/(sr.wins+sr.losses)*1000)/10:0;
@@ -712,6 +719,7 @@ function renderData(games,account,rank){
         <div class="rank-box"><div class="rank-label">자유 랭크</div>
             <div class="rank-tier" style="color:${tc[fr.tier?.toLowerCase()]||'#c0c0c0'}">${fr.tier||"Unranked"} ${fr.rank||""} ${fr.leaguePoints||0} LP</div>
             <div>${fr.wins||0}승 ${fr.losses||0}패 (${fw}%)</div></div>`;
+    }
 
     showCount=20; // 처음엔 20개만
     renderedGames=games;
