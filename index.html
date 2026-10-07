@@ -214,6 +214,18 @@
             <button id="fetch-btn" onclick="fetchAllData()">검색</button>
         </div>
         <div id="recent-users"></div>
+        <details class="api-settings" id="api-key-details">
+            <summary>🔑 API 키 설정</summary>
+            <div class="api-key-row">
+                <input type="password" id="api-key-input" placeholder="Riot API 키를 붙여넣으세요" autocomplete="off" spellcheck="false">
+                <button id="api-key-save-btn" onclick="saveApiKey()">키 저장</button>
+            </div>
+            <div class="api-key-row">
+                <input type="password" id="api-admin-pass" placeholder="관리자 비밀번호 (Render에 ADMIN_PASS로 설정)" autocomplete="off" spellcheck="false" style="flex:1">
+            </div>
+            <div class="api-key-msg" id="api-key-msg"></div>
+            <div class="api-key-help">🔑 개발용 키는 만료됩니다. 자주 갱신해 주세요. 키 받기: <a href="https://developer.riotgames.com" target="_blank" rel="noopener">developer.riotgames.com</a></div>
+        </details>
         <div class="status" id="api-status"></div>
     </div>
 
@@ -296,6 +308,30 @@ function setupAutoSearch(){
     const ni=document.getElementById("game-name-input"),ti=document.getElementById("tag-line-input");
     ni.addEventListener("keydown",e=>{if(e.key==="Enter")fetchAllData()});
     ti.addEventListener("keydown",e=>{if(e.key==="Enter")fetchAllData()});
+}
+
+/* ---------- API 키 설정 ---------- */
+function apiKeyMsg(txt,color){const m=document.getElementById("api-key-msg");if(m){m.textContent=txt;m.style.color=color||"#4ade80"}}
+async function saveApiKey(){
+    const inp=document.getElementById("api-key-input"),ap=document.getElementById("api-admin-pass");
+    const k=(inp&&inp.value||"").trim();
+    if(!k){apiKeyMsg("키를 입력한 뒤 저장해 주세요","#f87171");return;}
+    try{
+        const btn=document.getElementById("api-key-save-btn");
+        if(btn){btn.disabled=true;btn.textContent="저장 중..."}
+        const r=await fetch("/api/save-key",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:k,adminPass:(ap&&ap.value||"").trim()})});
+        const d=await r.json();
+        if(btn){btn.disabled=false;btn.textContent="키 저장"}
+        if(d.ok){hasApiKey=true;apiKeyMsg("✅ 키 저장 완료! 이제 전적을 검색해 보세요.");if(inp)inp.value="";}
+        else{apiKeyMsg(d.msg||"저장 실패","#f87171");}
+    }catch(e){apiKeyMsg("오류: "+e.message,"#f87171");}
+}
+async function initApiKeyUI(){
+    const has=await checkKey();
+    if(!has){
+        apiKeyMsg("⚠️ API 키가 아직 없어요. 키를 붙여넣고 저장하세요","#fbbf24");
+        const dt=document.getElementById("api-key-details");if(dt)dt.open=true;
+    }
 }
 
 /* ---------- 최근 검색 (기기 localStorage) ---------- */
@@ -487,21 +523,18 @@ async function fetchAllData(){
         if(mids.error)throw new Error(mids.error);
 
         const games=[];
-        const fetchMatch=async id=>{
-            for(let t=1;t<=4;t++){
-                try{
-                    const r=await fetch(`/api/match/${id}`);
-                    const m=await r.json();
-                    if((r.status===429||m.error)&&t<4){await new Promise(s=>setTimeout(s,1200*t));continue;}
-                    return m;
-                }catch(e){if(t<4){await new Promise(s=>setTimeout(s,1200*t));continue;}return null;}
-            }
-            return null;
-        };
+        if(mrSolo.error||mrFlex.error)throw new Error("매치 목록을 불러오지 못했습니다.");
+
+        // 한 번의 요청으로 매치 상세 30개를 서버에서 병렬로 가져오기 (기존: 30번 왕복 → 1번)
+        setLoading(true,"매치 상세 정보 가져오는 중 (30경기 한 번에)...");
+        const bres=await fetch("/api/matches-batch",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids:mids})});
+        const bd=await bres.json();
+        if(bd.error)throw new Error(bd.error);
+        const bMap=(bd.matches||{});
+        setLoading(true,"매치 분석 중...");
         for(let i=0;i<mids.length;i++){
-            setLoading(true,`매치 ${i+1}/${mids.length} 상세 정보...`);
-            const m=await fetchMatch(mids[i]);
-            if(!m||m.error)continue;
+            const m=bMap[mids[i]];
+            if(!m||!m.info)continue;
             const pi=m.metadata.participants.indexOf(puuid);
             if(pi<0)continue;
             const p=m.info.participants[pi];
@@ -608,7 +641,6 @@ async function fetchAllData(){
                 kp, dmgShare, multiKill,
                 gameTimeMs:(m.info.gameCreation||m.info.gameStartTimestamp||0)
             });
-            await new Promise(r=>setTimeout(r,700));
         }
         renderData(games,ad,rd);
         setStatus(`${games.length}개 매치 불러옴!`,"success");
@@ -896,7 +928,7 @@ function toggleDetail(i){
     }
 }
 
-window.addEventListener("DOMContentLoaded",()=>{checkKey();setupAutoSearch();renderRecent()});
+window.addEventListener("DOMContentLoaded",()=>{initApiKeyUI();setupAutoSearch();renderRecent()});
 </script>
 </body>
 </html>

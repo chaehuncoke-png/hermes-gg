@@ -132,9 +132,13 @@ def has_key():
 @app.route("/api/save-key", methods=["POST"])
 @limit_api
 def api_save_key():
-    k = request.get_json(silent=True).get("key", "").strip() if request.get_json(silent=True) else ""
+    body = request.get_json(silent=True) or {}
+    k = body.get("key", "").strip()
     if not k:
         return jsonify({"ok": False, "msg": "키를 입력하세요"})
+    admin = os.environ.get("ADMIN_PASS", "").strip()
+    if admin and body.get("adminPass", "") != admin:
+        return jsonify({"ok": False, "msg": "관리자 비밀번호가 틀립니다"})
     save_key(k)
     return jsonify({"ok": True})
 
@@ -206,6 +210,41 @@ def api_match(mid):
     if c != 200:
         return jsonify({"error": "매치 정보 오류"})
     return jsonify(d)
+
+@app.route("/api/matches-batch", methods=["POST"])
+@limit_api
+def api_matches_batch():
+    """매치 ID 여러 개를 서버에서 병렬로 가져옴 (브라우저 왕복 1회로 30경기 수집 → 체감속도 대폭 개선)"""
+    k = get_key()
+    if not k:
+        return jsonify({"error": "API 키 없음"})
+    body = request.get_json(silent=True) or {}
+    ids = [i for i in body.get("ids", []) if isinstance(i, str) and i][:40]
+    if not ids:
+        return jsonify({"error": "매치 ID가 없습니다."})
+    from concurrent.futures import ThreadPoolExecutor
+    matches, failed = {}, []
+    def fetch(mid):
+        try:
+            return riot_get(f"https://asia.api.riotgames.com/lol/match/v5/matches/{mid}", k)
+        except Exception:
+            return None, 0
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        futs = {ex.submit(fetch, mid): mid for mid in ids}
+        for fut in futs:
+            mid = futs[fut]
+            d, c = fut.result()
+            if c == 200 and isinstance(d, dict):
+                matches[mid] = d
+            else:
+                failed.append({"id": mid, "code": c})
+    # 실패한 것은 낱개 재시도 1회 (Riot 일시 오류 대비)
+    for f in list(failed):
+        d, c = fetch(f["id"])
+        if c == 200 and isinstance(d, dict):
+            matches[f["id"]] = d
+            failed.remove(f)
+    return jsonify({"matches": matches, "failed": failed})
 
 # ============ 실행 ============
 
