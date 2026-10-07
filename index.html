@@ -526,7 +526,7 @@ async function fetchAllData(){
         if(mrSolo.error||mrFlex.error)throw new Error("매치 목록을 불러오지 못했습니다.");
 
         // 한 번의 요청으로 매치 상세 30개를 서버에서 병렬로 가져오기 (기존: 30번 왕복 → 1번)
-        setLoading(true,"매치 상세 정보 가져오는 중 (30경기 한 번에)...");
+        setLoading(true,"매치 상세 정보 가져오는 중...");
         const bres=await fetch("/api/matches-batch",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids:mids})});
         const bd=await bres.json();
         if(bd.error)throw new Error(bd.error);
