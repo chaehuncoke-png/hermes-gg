@@ -74,10 +74,12 @@
         .stat-label{font-size:.88em;color:#6a9fd8;margin-top:5px}
         .win-rate{color:#4ade80}.team-luck{color:#fbbf24}
 
-        .summary-visual{grid-column:1/-1;background:rgba(10,25,60,0.5);border:1px solid rgba(80,140,230,0.15);border-radius:12px;padding:16px}
-        .wr-label{font-weight:800;font-size:1.05em;margin-bottom:8px;color:#cfe0f5}
-        .wr-track{height:16px;background:rgba(30,70,140,0.35);border-radius:8px;overflow:hidden;margin-bottom:10px}
-        .wr-fill{height:100%;background:linear-gradient(90deg,#2d7dd2,#4da6ff);border-radius:8px;transition:width .6s}
+        .summary-visual{grid-column:1/-1;background:rgba(10,25,60,0.5);border:1px solid rgba(80,140,230,0.15);border-radius:12px;padding:16px;display:flex;align-items:center;gap:26px;flex-wrap:wrap;justify-content:center}
+        .wr-ring{position:relative;width:150px;height:150px;flex:none}
+        .wr-ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+        .wr-ring-pct{font-size:2.1em;font-weight:900;line-height:1.1}
+        .wr-ring-wl{font-size:.85em;color:#6a9fd8;margin-top:4px}
+        .strip-box{flex:1;min-width:220px}
         .strip-label{font-size:.8em;color:#6a9fd8;margin-bottom:6px}
         .win-strip{display:flex;gap:3px;flex-wrap:wrap}
         .wstrip-win{width:16px;height:16px;border-radius:3px;background:#4da6ff}
@@ -257,7 +259,7 @@
         </div>
         <div class="card"><h2>라인별 승률</h2><div class="stats-grid" id="position-stats"></div></div>
         <div class="card">
-            <h2>모스트 5 챔피언</h2>
+            <h2>모스트 3 챔피언</h2>
             <div class="table-wrap">
             <table class="game-table">
                 <thead><tr><th>챔피언</th><th>경기수</th><th>승률</th><th>평균 KDA</th><th>평균 딜(k)</th><th>평균 킬관여</th><th>MVP</th><th>주 라인</th></tr></thead>
@@ -678,34 +680,42 @@ function renderData(games,account,rank){
     const avgKda=sumD>0?((sumK+sumA)/sumD).toFixed(2):"Perfect";
     const gl=games.filter(g=>g.teamLuck>=50).length;
     const allC=games.length;
-    const luckScore=allC?Math.round(games.reduce((s,g)=>s+g.teamLuck,0)/allC):0;
     const avgRank=allC?(games.reduce((s,g)=>s+g.teamRank,0)/allC).toFixed(1):"-";
     const mvpCount=games.filter(g=>g.isMVP).length;
     const gradeCounts={S:games.filter(g=>g.grade==="S").length,A:games.filter(g=>g.grade==="A").length,B:games.filter(g=>g.grade==="B").length,C:games.filter(g=>g.grade==="C").length,D:games.filter(g=>g.grade==="D").length};
     const bestGrade = gradeCounts.S>0?"S":(gradeCounts.A>0?"A":(gradeCounts.B>0?"B":(gradeCounts.C>0?"C":"D")));
 
-    // 시각화: 승률 진행바 + 최근 경기 승패 스트립
+    // 시각화: 승률 도넛 차트 + 최근 경기 승패 스트립
     const stripGames=games.slice(0,20);
     const winStrip=stripGames.map(g=>{
         if(g.remake)return '<span class="wstrip-remake" title="다시하기"></span>';
         return g.win?'<span class="wstrip-win" title="승리"></span>':'<span class="wstrip-loss" title="패배"></span>';
     }).join('');
-    const barWr=Math.max(0,Math.min(100,wr));
+    const C=2*Math.PI*58;
+    const ringColor=wr>=50?"#4ade80":wr>=40?"#fbbf24":"#f87171";
+    const ringDash=(wr/100*C).toFixed(1);
 
     document.getElementById("summary-stats").innerHTML=`
         <div class="summary-visual">
-            <div class="wr-label">승률 ${wr}% (${wins}W ${total-wins}L)</div>
-            <div class="wr-track"><div class="wr-fill" style="width:${barWr}%"></div></div>
-            <div class="strip-label">최근 경기 (왼쪽이 최신)</div>
-            <div class="win-strip">${winStrip}</div>
+            <div class="wr-ring">
+                <svg viewBox="0 0 140 140" width="150" height="150">
+                    <circle cx="70" cy="70" r="58" fill="none" stroke="rgba(30,70,140,0.35)" stroke-width="14"></circle>
+                    <circle cx="70" cy="70" r="58" fill="none" stroke="${ringColor}" stroke-width="14" stroke-linecap="round" stroke-dasharray="${ringDash} ${C}" transform="rotate(-90 70 70)"></circle>
+                </svg>
+                <div class="wr-ring-center">
+                    <div class="wr-ring-pct" style="color:${ringColor}">${wr}%</div>
+                    <div class="wr-ring-wl">${wins}승 ${total-wins}패</div>
+                </div>
+            </div>
+            <div class="strip-box">
+                <div class="strip-label">최근 20경기 폼 (왼쪽이 최신)</div>
+                <div class="win-strip">${winStrip}</div>
+            </div>
         </div>
         <div class="stat-item"><div class="stat-value">${avgKda}</div><div class="stat-label">평균 KDA</div></div>
-        <div class="stat-item"><div class="stat-value win-rate">${wr}%</div><div class="stat-label">승률</div></div>
         <div class="stat-item"><div class="stat-value" style="color:#a78bfa">${formWr}%</div><div class="stat-label">최근 10경기 폼 승률</div></div>
         <div class="stat-item"><div class="stat-value" style="color:#a78bfa">${formKda}</div><div class="stat-label">최근 10경기 폼 KDA</div></div>
-        <div class="stat-item"><div class="stat-value team-luck">${luckScore}%</div><div class="stat-label">팀운 점수</div></div>
-        <div class="stat-item"><div class="stat-value">${avgRank}</div><div class="stat-label">평균 전체순위</div></div>
-        <div class="stat-item"><div class="stat-value">${mvpCount}</div><div class="stat-label">MVP 획득</div></div>
+        <div class="stat-item"><div class="stat-value" style="color:#ffd700">${mvpCount}회</div><div class="stat-label">MVP 획득</div></div>
         <div class="stat-item"><div class="stat-value" style="font-size:1.3em;padding:8px;border-radius:8px">${bestGrade}</div><div class="stat-label">최다 등급</div></div>`;
 
     if(rank&&rank.error){
@@ -753,7 +763,7 @@ function renderData(games,account,rank){
     document.getElementById("position-stats").innerHTML=ph;
 
     const cm={};games.forEach(g=>{if(!cm[g.champion])cm[g.champion]={c:0,w:0,kd:0,pos:g.position,dmg:0,mvp:0,kp:0,cid:g.champId};cm[g.champion].c++;if(g.win)cm[g.champion].w++;cm[g.champion].kd+=g.kdaNum;cm[g.champion].dmg+=g.dmg;cm[g.champion].kp+=g.kp;if(g.isMVP)cm[g.champion].mvp++});
-    let ch="";for(const[c,st]of Object.entries(cm).sort((a,b)=>b[1].c-a[1].c).slice(0,5)){
+    let ch="";for(const[c,st]of Object.entries(cm).sort((a,b)=>b[1].c-a[1].c).slice(0,3)){
         const ak=(st.kd/st.c).toFixed(2);const kc=ak>=3?"good-kda":ak>=2?"normal-kda":"bad-kda";
         const ad=st.c?Math.round(st.dmg/st.c):0;
         const akp=st.c?Math.round(st.kp/st.c):0;
